@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Medical Record Demo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --bg: #f8fafc;
+            --card: #ffffff;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1e293b; }
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        header { text-align: center; margin-bottom: 40px; }
+        .status-bar { padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; transition: 0.3s; }
+        .valid { background: #dcfce7; color: #166534; }
+        .invalid { background: #fee2e2; color: #991b1b; }
+
+        .form-group { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin-bottom: 30px; display: flex; gap: 10px; }
+        input { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; }
+        button { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-add { background: var(--primary); color: white; }
+        .btn-add:hover { background: #1d4ed8; }
+
+        #chain { display: flex; flex-direction: column-reverse; gap: 20px; }
+        .block { background: var(--card); padding: 20px; border-radius: 12px; border-left: 8px solid var(--success); box-shadow: 0 2px 4px rgb(0 0 0 / 0.05); position: relative; transition: 0.3s; }
+        .block.is-invalid { border-left-color: var(--danger); animation: shake 0.5s; }
+        
+        .block-header { font-size: 0.8rem; color: #64748b; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .block-data { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; }
+        .hash-label { font-size: 0.7rem; font-family: monospace; color: #94a3b8; word-break: break-all; background: #f1f5f9; padding: 5px; border-radius: 4px; display: block; margin-top: 5px; }
+        
+        .tamper-btn { position: absolute; top: 15px; right: 15px; font-size: 0.7rem; background: #f1f5f9; border: 1px solid #cbd5e1; }
+        .tamper-btn:hover { background: #fee2e2; color: var(--danger); }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Bisma Medical Chain</h1>
+        <p>Simulasi Integritas Data Rekam Medis Pasien</p>
+    </header>
+
+    <div id="status" class="status-bar valid">SISTEM AMAN: Integritas Data Terverifikasi</div>
+
+    <div class="form-group">
+        <input type="text" id="patientName" placeholder="Nama Pasien...">
+        <input type="text" id="diagnosis" placeholder="Diagnosa Medis...">
+        <button class="btn-add" onclick="addNewBlock()">Simpan ke Ledger</button>
+    </div>
+
+    <div id="chain">
+        </div>
+</div>
+
+<script>
+    //Smart Contract
+    class Block {
+        constructor(index, timestamp, patientName, diagnosis, previousHash = '') {
+            this.index = index;
+            this.timestamp = timestamp;
+            this.patientName = patientName;
+            this.diagnosis = diagnosis;
+            this.previousHash = previousHash;
+            this.hash = this.calculateHash();
+        }
+
+        calculateHash() {
+            return CryptoJS.SHA256(
+                this.index + this.previousHash + this.timestamp + this.patientName + this.diagnosis
+            ).toString();
+        }
+    }
+
+    class Blockchain {
+        constructor() {
+            this.chain = [this.createGenesisBlock()];
+        }
+
+        createGenesisBlock() {
+            return new Block(0, new Date().toISOString(), "Genesis Block", "System Initialization", "0");
+        }
+
+        getLatestBlock() {
+            return this.chain[this.chain.length - 1];
+        }
+
+        addBlock(patientName, diagnosis) {
+            const newBlock = new Block(
+                this.chain.length,
+                new Date().toISOString(),
+                patientName,
+                diagnosis,
+                this.getLatestBlock().hash
+            );
+            this.chain.push(newBlock);
+        }
+
+        isChainValid() {
+            for (let i = 1; i < this.chain.length; i++) {
+                const currentBlock = this.chain[i];
+                const previousBlock = this.chain[i - 1];
+
+                if (currentBlock.hash !== currentBlock.calculateHash()) return false;
+                if (currentBlock.previousHash !== previousBlock.hash) return false;
+            }
+            return true;
+        }
+    }
+
+    //FRONTEND
+    const medChain = new Blockchain();
+
+    function renderChain() {
+        const chainEl = document.getElementById('chain');
+        const statusBar = document.getElementById('status');
+        const isValid = medChain.isChainValid();
+
+        chainEl.innerHTML = '';
+        
+        medChain.chain.forEach((block, index) => {
+            // cek validitas per blok untuk visualisasi
+            let blockValid = true;
+            if (index > 0) {
+                const prev = medChain.chain[index-1];
+                blockValid = (block.hash === block.calculateHash() && block.previousHash === prev.hash);
+            }
+
+            const blockEl = document.createElement('div');
+            blockEl.className = `block ${!blockValid ? 'is-invalid' : ''}`;
+            blockEl.innerHTML = `
+                <div class="block-header">
+                    <span>BLOCK #${block.index}</span>
+                    <span>${new Date(block.timestamp).toLocaleString()}</span>
+                </div>
+                <div class="block-data">
+                    🩺 ${block.patientName}: <span style="color: var(--primary)">${block.diagnosis}</span>
+                </div>
+                <small>PREVIOUS HASH:</small>
+                <span class="hash-label">${block.previousHash}</span>
+                <small>CURRENT HASH:</small>
+                <span class="hash-label" style="color: #0f172a">${block.hash}</span>
+                ${index > 0 ? `<button class="tamper-btn" onclick="tamperData(${index})">Edit</button>` : ''}
+            `;
+            chainEl.appendChild(blockEl);
+        });
+
+        if (isValid) {
+            statusBar.innerText = "SISTEM AMAN: Integritas Data Terverifikasi";
+            statusBar.className = "status-bar valid";
+        } else {
+            statusBar.innerText = "PERINGATAN: Terdeteksi Manipulasi Data pada Ledger!";
+            statusBar.className = "status-bar invalid";
+        }
+    }
+
+    function addNewBlock() {
+        const pName = document.getElementById('patientName');
+        const diag = document.getElementById('diagnosis');
+
+        if (pName.value && diag.value) {
+            medChain.addBlock(pName.value, diag.value);
+            pName.value = '';
+            diag.value = '';
+            renderChain();
+        } else {
+            alert("Harap isi semua data!");
+        }
+    }
+
+    function tamperData(index) {
+        const newData = prompt("Ubah Diagnosa Pasien (Akses Admin Ilegal):", "Sehat Walafiat");
+        if (newData) {
+            medChain.chain[index].diagnosis = newData;
+            renderChain();
+        }
+    }
+
+    
+    renderChain();
+</script>
+
+</body>
+</html>
