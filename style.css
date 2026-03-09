@@ -3,6 +3,7 @@
             --danger: #ef4444;
             --success: #22c55e;
             --bg: #cececea9;
+            --block: #d5d5d5a9;
             --card: #ffffff;
         }
 
@@ -23,14 +24,14 @@
         .valid { background: #dcfce7; color: #166534; }
         .invalid { background: #fee2e2; color: #991b1b; }
 
-        .form-group { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin-bottom: 30px; display: flex; gap: 10px; }
+        .form-group { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin-bottom: 30px; display: flex; gap: 10px;}
         input { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; }
         button { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .btn-add { background: var(--primary); color: white; }
         .btn-add:hover { background: #1d4ed8; }
 
         #chain { display: flex; flex-direction: column-reverse; gap: 20px; }
-        .block { background: var(--card); padding: 20px; border-radius: 12px; border-left: 8px solid var(--success); box-shadow: 0 2px 4px rgb(0 0 0 / 0.05); position: relative; transition: 0.3s; }
+        .block { background: var(--card); padding: 20px; border-radius: 12px; border-left: 8px solid var(--success); box-shadow: 0 2px 4px rgb(0 0 0 / 0.05); position: relative; transition: 0.3s; background-color: var(--block);}
         .block.is-invalid { border-left-color: var(--danger); animation: shake 0.5s; }
         
         .block-header { font-size: 0.8rem; color: #64748b; margin-bottom: 10px; display: flex; justify-content: space-between; }
