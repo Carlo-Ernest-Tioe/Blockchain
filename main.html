@@ -6,7 +6,10 @@
     <title>Blockchain Medical Record Demo</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="Bisma.ico">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- ethers.js for MetaMask interaction -->
+    <!-- <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js" type="application/javascript"></script> -->
+    <!-- CryptoJS for local chain simulation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 </head>
 <body>
 
@@ -18,6 +21,13 @@
             <p>Simulasi Integritas Data Rekam Medis Pasien</p>
         </div>
     </header>
+
+    <!-- MetaMask Wallet Connection -->
+    <div class="wallet-section">
+        <button id="connectBtn" onclick="connectMetaMask()">Hubungkan MetaMask</button>
+        <span class="wallet-badge disconnected" id="walletBadge">Offline</span>
+        <span id="walletAddress">Belum terhubung</span>
+    </div>
 
     <div class="role-selector">
         <label for="currentRole">Login Sebagai:</label>
@@ -36,9 +46,9 @@
         <button class="btn-add" onclick="addNewBlock()">Simpan ke Ledger</button>
     </div>
 
-    <div id="chain">
-        </div>
+    <div id="chain"></div>
 </div>
+
 <script src="script.js"></script>
 </body>
 </html>
