@@ -23,6 +23,13 @@
         .valid { background: #dcfce7; color: #166534; }
         .invalid { background: #fee2e2; color: #991b1b; }
 
+        .role-selector { background: #e2e8f0; padding: 15px; border-radius: 8px; display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; font-weight: bold; }
+        select { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 1rem; cursor: pointer; }
+
+        .status-bar { padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; transition: 0.3s; }
+        .valid { background: #dcfce7; color: #166534; }
+        .invalid { background: #fee2e2; color: #991b1b; }
+
         .form-group { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin-bottom: 30px; display: flex; gap: 10px; }
         input { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; }
         button { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
@@ -44,4 +51,8 @@
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-5px); }
             75% { transform: translateX(5px); }
+        }
+
+        .hidden { 
+            display: none !important; 
         }
