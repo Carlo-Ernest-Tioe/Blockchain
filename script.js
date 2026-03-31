@@ -54,6 +54,9 @@ const CONTRACT_ABI = [
     "function admin() public view returns (address)"
 ];
 
+// Public read-only provider — no wallet needed to VIEW
+const SEPOLIA_RPC = "https://eth-sepolia.g.alchemy.com/v2/demo";
+
 // --- App State ---
 let provider = null;
 let signer = null;
@@ -156,7 +159,7 @@ function handleAccountChange(accounts) {
 function disconnectWallet() {
     provider = null; signer = null; contract = null; connectedAddress = null;
     document.getElementById('walletAddress').innerText = "Belum terhubung";
-    document.getElementById('connectBtn').innerText = "🦊 Hubungkan MetaMask";
+    document.getElementById('connectBtn').innerText = "Hubungkan MetaMask";
     document.getElementById('walletBadge').className = "wallet-badge disconnected";
     renderChain(); // fallback to local chain
 }
@@ -164,7 +167,7 @@ function disconnectWallet() {
 function updateWalletUI(address) {
     const short = address.slice(0, 6) + '...' + address.slice(-4);
     document.getElementById('walletAddress').innerText = short;
-    document.getElementById('connectBtn').innerText = "✅ Terhubung";
+    document.getElementById('connectBtn').innerText = "Terhubung";
     document.getElementById('walletBadge').innerText = "Online";
     document.getElementById('walletBadge').className = "wallet-badge connected";
 }
@@ -237,7 +240,7 @@ async function renderChain() {
                     diagnosis: diagnosis,
                     timestamp: new Date(timestamp * 1000).toISOString(),
                     previousHash: "On-Chain (Ethereum)",
-                    hash: "Verified by Ethereum Network ✅",
+                    hash: "Verified by Ethereum Network",
                     addedBy: addedBy
                 }, role));
             }
@@ -362,6 +365,19 @@ function tamperData(index) {
 }
 
 // ============================================================
-// INIT
+// INIT — runs on page load
 // ============================================================
+
+// On page load, show chain in read-only mode immediately (no wallet needed)
+async function initReadOnly() {
+    try {
+        const readProvider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC);
+        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
+        await renderChain(); // loads chain for everyone instantly
+    } catch (e) {
+        console.warn("Read-only init failed:", e.message);
+    }
+}
+
 updateUIByRole();
+initReadOnly();
