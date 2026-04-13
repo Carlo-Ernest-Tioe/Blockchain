@@ -206,7 +206,7 @@ function updateUIByRole() {
 }
 
 // ============================================================
-// RENDER CHAIN
+// RENDER CHAIN — grouped by patient into columns
 // ============================================================
 
 async function renderChain() {
@@ -220,21 +220,24 @@ async function renderChain() {
     if (contract && CONTRACT_ADDRESS !== "0xYOUR_CONTRACT_ADDRESS_HERE") {
         try {
             const total = await contract.totalRecords();
-            chainEl.innerHTML = '';
 
-            // Always show genesis block
-            chainEl.appendChild(buildBlockElement({
-                index: 0, patientName: "Genesis Block",
+            // Collect all on-chain records
+            const allBlocks = [];
+
+            // Genesis block always first
+            allBlocks.push({
+                index: 0,
+                patientName: "Genesis Block",
                 diagnosis: "System Initialization",
                 timestamp: new Date().toISOString(),
                 previousHash: "0000000000000000",
                 hash: "ETHEREUM_GENESIS",
                 isGenesis: true
-            }, role));
+            });
 
             for (let i = 0; i < total; i++) {
                 const [name, diagnosis, timestamp, addedBy] = await contract.getRecord(i);
-                chainEl.appendChild(buildBlockElement({
+                allBlocks.push({
                     index: i + 1,
                     patientName: name,
                     diagnosis: diagnosis,
@@ -242,8 +245,10 @@ async function renderChain() {
                     previousHash: "On-Chain (Ethereum)",
                     hash: "Verified by Ethereum Network",
                     addedBy: addedBy
-                }, role));
+                });
             }
+
+            renderGroupedChain(chainEl, allBlocks, role);
 
             statusBar.innerText = "SISTEM AMAN: Data Terverifikasi di Jaringan Ethereum";
             statusBar.className = "status-bar valid";
@@ -254,22 +259,74 @@ async function renderChain() {
     }
 
     // Fallback: local simulation chain
-    chainEl.innerHTML = '';
     const isValid = localChain.isChainValid();
 
-    localChain.chain.forEach((block, index) => {
+    const localBlocks = localChain.chain.map((block, index) => {
         let blockValid = true;
         if (index > 0) {
             const prev = localChain.chain[index - 1];
             blockValid = (block.hash === block.calculateHash() && block.previousHash === prev.hash);
         }
-        chainEl.appendChild(buildBlockElement({ ...block, blockValid, isLocal: true }, role, index));
+        return { ...block, blockValid, isLocal: true, localIndex: index };
     });
+
+    renderGroupedChain(chainEl, localBlocks, role);
 
     statusBar.innerText = isValid
         ? "MODE SIMULASI LOKAL: Integritas Data Terverifikasi"
         : "PERINGATAN: Terdeteksi Manipulasi Data pada Ledger!";
     statusBar.className = `status-bar ${isValid ? 'valid' : 'invalid'}`;
+}
+
+// Groups blocks by patientName and renders them as side-by-side columns
+function renderGroupedChain(chainEl, blocks, role) {
+    chainEl.innerHTML = '';
+
+    // Build a map: patientName → [blocks...]
+    const groups = new Map();
+    blocks.forEach(block => {
+        const key = block.patientName;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(block);
+    });
+
+    // Outer wrapper for horizontal scroll if many patients
+    const grid = document.createElement('div');
+    grid.className = 'chain-grid';
+
+    groups.forEach((patientBlocks, patientName) => {
+        const col = document.createElement('div');
+        col.className = 'chain-column';
+
+        // Column header label
+        const header = document.createElement('div');
+        header.className = 'chain-column-header';
+        header.innerHTML = `${patientName}`;
+        col.appendChild(header);
+
+        // Render each block in this patient's column (newest on top)
+        const blocksWrapper = document.createElement('div');
+        blocksWrapper.className = 'chain-column-blocks';
+
+        // Reverse so newest block appears at top (matching original column-reverse behaviour)
+        [...patientBlocks].reverse().forEach((block, colIdx) => {
+            const blockEl = buildBlockElement(block, role, block.localIndex ?? -1);
+
+            // Add a visual chain connector arrow between blocks (except after last)
+            blocksWrapper.appendChild(blockEl);
+            if (colIdx < patientBlocks.length - 1) {
+                const connector = document.createElement('div');
+                connector.className = 'chain-connector';
+                connector.innerHTML = '↕';
+                blocksWrapper.appendChild(connector);
+            }
+        });
+
+        col.appendChild(blocksWrapper);
+        grid.appendChild(col);
+    });
+
+    chainEl.appendChild(grid);
 }
 
 function buildBlockElement(block, role, localIndex = -1) {
@@ -291,7 +348,7 @@ function buildBlockElement(block, role, localIndex = -1) {
             <span>${new Date(block.timestamp).toLocaleString()}</span>
         </div>
         <div class="block-data">
-            🩺 ${block.patientName}: <span style="color: var(--primary)">${block.diagnosis}</span>
+            ${block.patientName}: <span style="color: var(--primary)">${block.diagnosis}</span>
         </div>
         <small>PREVIOUS HASH:</small>
         <span class="hash-label">${block.previousHash}</span>

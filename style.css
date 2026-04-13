@@ -1,4 +1,4 @@
-        :root {
+:root {
             --primary: #2563eb;
             --danger: #ef4444;
             --success: #22c55e;
@@ -88,8 +88,60 @@
         .btn-add { background: var(--primary); color: white; }
         .btn-add:hover { background: #1d4ed8; }
 
-        #chain { display: flex; flex-direction: column-reverse; gap: 20px; }
-        .block { background: var(--card); padding: 20px; border-radius: 12px; border-left: 8px solid var(--success); box-shadow: 0 2px 4px rgb(0 0 0 / 0.05); position: relative; transition: 0.3s; background-color: var(--block);}
+        /* Chain grid — horizontal columns per patient */
+        #chain { overflow-x: auto; padding-bottom: 12px; }
+
+        .chain-grid {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 24px;
+            min-width: max-content;
+            padding: 4px 2px;
+        }
+
+        .chain-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 260px;
+            max-width: 300px;
+        }
+
+        .chain-column-header {
+            width: 100%;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #1e3a5f;
+            background: #e0eaff;
+            border: 1.5px solid #2563eb33;
+            border-radius: 8px;
+            padding: 7px 10px;
+            margin-bottom: 12px;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chain-column-blocks {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            gap: 0;
+        }
+
+        /* Arrow connector between blocks in a column */
+        .chain-connector {
+            font-size: 1.2rem;
+            color: #94a3b8;
+            line-height: 1;
+            margin: 4px 0;
+            user-select: none;
+        }
+        .block { background: var(--card); padding: 20px; border-radius: 12px; border-left: 8px solid var(--success); box-shadow: 0 2px 4px rgb(0 0 0 / 0.05); position: relative; transition: 0.3s; background-color: var(--block); width: 100%; box-sizing: border-box; }
         .block.is-invalid { border-left-color: var(--danger); animation: shake 0.5s; }
         
         .block-header { font-size: 0.8rem; color: #64748b; margin-bottom: 10px; display: flex; justify-content: space-between; }
