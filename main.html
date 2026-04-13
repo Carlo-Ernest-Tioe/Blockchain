@@ -6,10 +6,8 @@
     <title>Blockchain Medical Record Demo</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="Bisma.ico">
-    <!-- ethers.js for MetaMask interaction -->
-    <!-- <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js" type="application/javascript"></script> -->
-    <!-- CryptoJS for local chain simulation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 </head>
 <body>
 
@@ -22,27 +20,21 @@
         </div>
     </header>
 
-    <!-- MetaMask Wallet Connection -->
+    <!-- Wallet Connection -->
     <div class="wallet-section">
         <button id="connectBtn" onclick="connectMetaMask()">Hubungkan MetaMask</button>
         <span class="wallet-badge disconnected" id="walletBadge">Offline</span>
         <span id="walletAddress">Belum terhubung</span>
+        <!-- Role badge — auto-set by detectRole() -->
+        <span class="role-badge role-none" id="roleBadge">Tidak Terhubung</span>
     </div>
 
-    <div class="role-selector">
-        <label for="currentRole">Login Sebagai:</label>
-        <select id="currentRole" onchange="updateUIByRole()">
-            <option value="doctor">Dokter (Input Data)</option>
-            <option value="patient">Pasien (View Only)</option>
-            <option value="admin">Admin IT</option>
-        </select>
-    </div>
+    <div id="status" class="status-bar invalid">Tidak terhubung — Hubungkan MetaMask</div>
 
-    <div id="status" class="status-bar valid">SISTEM AMAN: Integritas Data Terverifikasi</div>
-
-    <div class="form-group" id="inputForm">
+    <!-- Input form — only visible to doctor / admin -->
+    <div class="form-group hidden" id="inputForm">
         <input type="text" id="patientName" placeholder="Nama Pasien...">
-        <input type="text" id="diagnosis" placeholder="Diagnosa Medis...">
+        <input type="text" id="diagnosis"   placeholder="Diagnosa Medis...">
         <button class="btn-add" onclick="addNewBlock()">Simpan ke Ledger</button>
     </div>
 

@@ -1,162 +1,293 @@
 :root {
-            --primary: #2563eb;
-            --danger: #ef4444;
-            --success: #22c55e;
-            --bg: #cececea9;
-            --block: #d5d5d5a9;
-            --card: #ffffff;
-        }
+    --primary: #2563eb;
+    --danger:  #ef4444;
+    --success: #22c55e;
+    --bg:      #cececea9;
+    --block:   #d5d5d5a9;
+    --card:    #ffffff;
+}
 
-        body {background: var(--bg); margin: 0; padding: 20px; color: #1e293b;
-            font-family: Arial, Helvetica, sans-serif; }
-        .container { 
-            max-width: 900px;
-            margin: 0 auto; 
-            border-radius: 5em;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-            padding: 2em 5em 2em 5em;
-            background-color: #ffffff;
-        }
-        
-        header { margin-bottom: 40px; display: flex; align-items: center; justify-content: center;}
-        img{ margin-right: 0.5em;}
-        .status-bar { padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; transition: 0.3s; }
-        .valid { background: #dcfce7; color: #166534; }
-        .invalid { background: #fee2e2; color: #991b1b; }
-        .role-selector{
-            margin-bottom: 1em;
-        }
+body {
+    background: var(--bg);
+    margin: 0;
+    padding: 20px;
+    color: #1e293b;
+    font-family: Arial, Helvetica, sans-serif;
+}
 
-        /* Wallet Section Styles */
-        .wallet-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-        }
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    border-radius: 5em;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    padding: 2em 5em 2em 5em;
+    background-color: #ffffff;
+}
 
-        #connectBtn {
-            background: #f6851b; /* MetaMask orange */
-            color: white;
-            border: none;
-            padding: 8px 18px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
+header {
+    margin-bottom: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+img { margin-right: 0.5em; }
 
-        #connectBtn:hover { background: #e2761b; }
+/* ─── Status Bar ─────────────────────────────────────────── */
+.status-bar {
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 20px;
+    transition: 0.3s;
+}
+.valid   { background: #dcfce7; color: #166534; }
+.invalid { background: #fee2e2; color: #991b1b; }
 
-        .wallet-badge {
-            font-size: 0.8rem;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-weight: 600;
-        }
+/* ─── Wallet Section ─────────────────────────────────────── */
+.wallet-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
 
-        .wallet-badge.connected {
-            background: #dcfce7;
-            color: #166534;
-        }
+#connectBtn {
+    background: #f6851b;
+    color: white;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+#connectBtn:hover { background: #e2761b; }
 
-        .wallet-badge.disconnected {
-            background: #fee2e2;
-            color: #991b1b;
-        }
+.wallet-badge {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+.wallet-badge.connected    { background: #dcfce7; color: #166534; }
+.wallet-badge.disconnected { background: #fee2e2; color: #991b1b; }
 
-        #walletAddress {
-            font-family: monospace;
-            font-size: 0.85rem;
-            color: #475569;
-        }
+#walletAddress {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: #475569;
+}
 
-        .wallet-hint {
-            font-size: 0.75rem;
-            color: #94a3b8;
-            margin-left: auto;
-        }
+/* ─── Role Badge ─────────────────────────────────────────── */
+.role-badge {
+    margin-left: auto;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.role-none    { background: #f1f5f9; color: #94a3b8; }
+.role-guest   { background: #fef3c7; color: #92400e; }
+.role-patient { background: #dbeafe; color: #1e3a8a; }
+.role-doctor  { background: #dcfce7; color: #14532d; }
+.role-admin   { background: #fee2e2; color: #7f1d1d; }
 
-        .form-group { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin-bottom: 30px; display: flex; gap: 10px;}
-        input { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; }
-        button { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        .btn-add { background: var(--primary); color: white; }
-        .btn-add:hover { background: #1d4ed8; }
+/* ─── Form ───────────────────────────────────────────────── */
+.form-group {
+    background: var(--card);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    margin-bottom: 30px;
+    display: flex;
+    gap: 10px;
+}
+input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+}
+button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+}
+.btn-add       { background: var(--primary); color: white; }
+.btn-add:hover { background: #1d4ed8; }
 
-        /* Chain grid — horizontal columns per patient */
-        #chain { overflow-x: auto; padding-bottom: 12px; }
+/* ─── Chain Grid ─────────────────────────────────────────── */
+#chain { overflow-x: auto; padding-bottom: 12px; }
 
-        .chain-grid {
-            display: flex;
-            flex-direction: row;
-            align-items: flex-start;
-            gap: 24px;
-            min-width: max-content;
-            padding: 4px 2px;
-        }
+.chain-grid {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 24px;
+    min-width: max-content;
+    padding: 4px 2px;
+}
 
-        .chain-column {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-width: 260px;
-            max-width: 300px;
-        }
+.chain-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 260px;
+    max-width: 300px;
+}
 
-        .chain-column-header {
-            width: 100%;
-            text-align: center;
-            font-weight: 700;
-            font-size: 0.85rem;
-            color: #1e3a5f;
-            background: #e0eaff;
-            border: 1.5px solid #2563eb33;
-            border-radius: 8px;
-            padding: 7px 10px;
-            margin-bottom: 12px;
-            letter-spacing: 0.03em;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+.chain-column-header {
+    width: 100%;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #1e3a5f;
+    background: #e0eaff;
+    border: 1.5px solid #2563eb33;
+    border-radius: 8px;
+    padding: 7px 10px;
+    margin-bottom: 12px;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
-        .chain-column-blocks {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            gap: 0;
-        }
+.chain-column-blocks {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    gap: 0;
+}
 
-        /* Arrow connector between blocks in a column */
-        .chain-connector {
-            font-size: 1.2rem;
-            color: #94a3b8;
-            line-height: 1;
-            margin: 4px 0;
-            user-select: none;
-        }
-        .block { background: var(--card); padding: 20px; border-radius: 12px; border-left: 8px solid var(--success); box-shadow: 0 2px 4px rgb(0 0 0 / 0.05); position: relative; transition: 0.3s; background-color: var(--block); width: 100%; box-sizing: border-box; }
-        .block.is-invalid { border-left-color: var(--danger); animation: shake 0.5s; }
-        
-        .block-header { font-size: 0.8rem; color: #64748b; margin-bottom: 10px; display: flex; justify-content: space-between; }
-        .block-data { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; }
-        .hash-label { font-size: 0.7rem; font-family: monospace; color: #94a3b8; word-break: break-all; background: #f1f5f9; padding: 5px; border-radius: 4px; display: block; margin-top: 5px; }
-        
-        .tamper-btn { position: absolute; top: 15px; right: 15px; font-size: 0.7rem; background: #f1f5f9; border: 1px solid #cbd5e1; }
-        .tamper-btn:hover { background: #fee2e2; color: var(--danger); }
+.chain-connector {
+    font-size: 1.2rem;
+    color: #94a3b8;
+    line-height: 1;
+    margin: 4px 0;
+    user-select: none;
+}
 
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
+/* ─── Block ──────────────────────────────────────────────── */
+.block {
+    background: var(--block);
+    padding: 20px;
+    border-radius: 12px;
+    border-left: 8px solid var(--success);
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.05);
+    position: relative;
+    transition: 0.3s;
+    width: 100%;
+    box-sizing: border-box;
+}
+.block.is-invalid {
+    border-left-color: var(--danger);
+    animation: shake 0.5s;
+}
 
-        .hidden { 
-            display: none !important; 
-        }
+/* Private block gets a distinct visual treatment */
+.block.is-private {
+    border-left-color: #8b5cf6;
+    background: #f5f3ff;
+}
+
+.block-header {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.block-data {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.hash-label {
+    font-size: 0.7rem;
+    font-family: monospace;
+    color: #94a3b8;
+    word-break: break-all;
+    background: #f1f5f9;
+    padding: 5px;
+    border-radius: 4px;
+    display: block;
+    margin-top: 5px;
+}
+
+/* Privacy indicator badge (shown to doctor/admin on private blocks) */
+.privacy-indicator {
+    font-size: 0.7rem;
+    background: #ede9fe;
+    color: #5b21b6;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+/* Privacy toggle button (shown to patient on their own records) */
+.privacy-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1.5px solid #c4b5fd;
+    background: #ede9fe;
+    color: #5b21b6;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.privacy-btn:hover       { background: #ddd6fe; }
+.privacy-btn.is-private-btn {
+    background: #5b21b6;
+    color: #fff;
+    border-color: #5b21b6;
+}
+.privacy-btn.is-private-btn:hover { background: #4c1d95; }
+
+/* Tamper button */
+.tamper-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    font-size: 0.7rem;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+}
+.tamper-btn:hover { background: #fee2e2; color: var(--danger); }
+
+/* Loading / empty message */
+.loading {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.95rem;
+    padding: 40px 0;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25%       { transform: translateX(-5px); }
+    75%       { transform: translateX(5px); }
+}
+
+.hidden { display: none !important; }

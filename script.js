@@ -1,77 +1,55 @@
 // ============================================================
-// SOLIDITY CONTRACT (deploy this separately via Remix IDE)
-// Save as MedicalChain.sol and deploy to Sepolia Testnet
-// ============================================================
-/*
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-contract MedicalChain {
-    struct Record {
-        string patientName;
-        string diagnosis;
-        uint256 timestamp;
-        address addedBy;
-    }
-
-    Record[] public records;
-    mapping(address => bool) public authorizedDoctors;
-    address public admin;
-
-    constructor() { admin = msg.sender; }
-
-    modifier onlyAdmin() { require(msg.sender == admin, "Bukan Admin"); _; }
-    modifier onlyDoctor() { require(authorizedDoctors[msg.sender], "Akses Ditolak: Bukan Dokter"); _; }
-
-    function authorizeDoctor(address _doc) public onlyAdmin { authorizedDoctors[_doc] = true; }
-    function revokeDoctor(address _doc) public onlyAdmin { authorizedDoctors[_doc] = false; }
-
-    function addRecord(string memory _name, string memory _diagnosis) public onlyDoctor {
-        records.push(Record(_name, _diagnosis, block.timestamp, msg.sender));
-    }
-
-    function getRecord(uint index) public view returns (string memory, string memory, uint256, address) {
-        Record memory r = records[index];
-        return (r.patientName, r.diagnosis, r.timestamp, r.addedBy);
-    }
-
-    function totalRecords() public view returns (uint) { return records.length; }
-}
-*/
-
-// ============================================================
-// FRONTEND JAVASCRIPT (this file — script.js)
+// SOLIDITY CONTRACT — deploy via Remix IDE
+// Full source is in MedicalChain.sol
+// After redeploying, update CONTRACT_ADDRESS below
 // ============================================================
 
-// --- STEP 1: Paste your deployed contract address and ABI here ---
-const CONTRACT_ADDRESS = "0xAd2958c16137244094Cc14b1D9A53cD2585A3C9E";
-// const CONTRACT_ADDRESS = "0x..."; wallet
+// ============================================================
+// FRONTEND JAVASCRIPT
+// ============================================================
+
+// --- Paste your NEW deployed contract address here after redeploying ---
+const CONTRACT_ADDRESS = "0x2ef015659F930979DFE5356Ebcf5dB36Bd8EE888";
+
 const CONTRACT_ABI = [
+    // Write
     "function addRecord(string memory _name, string memory _diagnosis) public",
-    "function getRecord(uint index) public view returns (string, string, uint256, address)",
+    "function togglePrivacy(uint _index) public",
+    "function authorizeDoctor(address _doc) public",
+    "function revokeDoctor(address _doc) public",
+    "function authorizePatient(address _patient, string memory _name) public",
+    "function revokePatient(address _patient) public",
+    // Read
+    "function getRecord(uint _index) public view returns (string, string, uint256, address, bool)",
     "function totalRecords() public view returns (uint)",
     "function authorizedDoctors(address) public view returns (bool)",
+    "function patientNames(address) public view returns (string)",
     "function admin() public view returns (address)"
 ];
 
-// Public read-only provider — no wallet needed to VIEW
+// Public read-only RPC — used for unrecognized wallets reading public records
 const SEPOLIA_RPC = "https://eth-sepolia.g.alchemy.com/v2/demo";
 
-// --- App State ---
-let provider = null;
-let signer = null;
-let contract = null;
+// ─── App State ─────────────────────────────────────────────────
+let provider         = null;
+let signer           = null;
+let contract         = null;
 let connectedAddress = null;
 
-// Local simulation chain (used as fallback / tamper demo)
+// Role: 'none' | 'unrecognized' | 'patient' | 'doctor' | 'admin'
+let currentRole        = 'none';
+let currentPatientName = null;
+
+// ─── Local simulation chain (fallback only) ────────────────────
 class Block {
     constructor(index, timestamp, patientName, diagnosis, previousHash = '') {
-        this.index = index;
-        this.timestamp = timestamp;
-        this.patientName = patientName;
-        this.diagnosis = diagnosis;
+        this.index        = index;
+        this.timestamp    = timestamp;
+        this.patientName  = patientName;
+        this.diagnosis    = diagnosis;
         this.previousHash = previousHash;
-        this.hash = this.calculateHash();
+        this.hash         = this.calculateHash();
+        this.isPrivate    = false;
     }
     calculateHash() {
         return CryptoJS.SHA256(
@@ -87,11 +65,11 @@ class Blockchain {
     }
     getLatestBlock() { return this.chain[this.chain.length - 1]; }
     addBlock(patientName, diagnosis) {
-        const newBlock = new Block(
+        const b = new Block(
             this.chain.length, new Date().toISOString(),
             patientName, diagnosis, this.getLatestBlock().hash
         );
-        this.chain.push(newBlock);
+        this.chain.push(b);
     }
     isChainValid() {
         for (let i = 1; i < this.chain.length; i++) {
@@ -114,24 +92,18 @@ async function connectMetaMask() {
         alert("MetaMask tidak ditemukan!\nInstall di https://metamask.io");
         return;
     }
-
     try {
-        // Request wallet access
         await window.ethereum.request({ method: 'eth_requestAccounts' });
 
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        signer = provider.getSigner();
+        provider         = new ethers.providers.Web3Provider(window.ethereum);
+        signer           = provider.getSigner();
         connectedAddress = await signer.getAddress();
+        contract         = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
-        // Connect to smart contract
-        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-
-        // Update UI
         updateWalletUI(connectedAddress);
-        await detectRoleFromWallet();
+        await detectRole();
         await renderChain();
 
-        // Listen for account/network changes
         window.ethereum.on('accountsChanged', handleAccountChange);
         window.ethereum.on('chainChanged', () => window.location.reload());
 
@@ -151,104 +123,129 @@ function handleAccountChange(accounts) {
     } else {
         connectedAddress = accounts[0];
         updateWalletUI(connectedAddress);
-        detectRoleFromWallet();
-        renderChain();
+        detectRole().then(() => renderChain());
     }
 }
 
 function disconnectWallet() {
-    provider = null; signer = null; contract = null; connectedAddress = null;
+    provider = null; signer = null; contract = null;
+    connectedAddress = null; currentRole = 'none'; currentPatientName = null;
+
     document.getElementById('walletAddress').innerText = "Belum terhubung";
-    document.getElementById('connectBtn').innerText = "Hubungkan MetaMask";
-    document.getElementById('walletBadge').className = "wallet-badge disconnected";
-    renderChain(); // fallback to local chain
+    document.getElementById('connectBtn').innerText    = "Hubungkan MetaMask";
+    document.getElementById('walletBadge').className   = "wallet-badge disconnected";
+    document.getElementById('walletBadge').innerText   = "Offline";
+
+    updateRoleUI();
+    document.getElementById('chain').innerHTML =
+        '<div class="loading">Hubungkan MetaMask untuk melihat data.</div>';
+    document.getElementById('status').innerText = "Tidak terhubung";
+    document.getElementById('status').className = "status-bar invalid";
 }
 
 function updateWalletUI(address) {
     const short = address.slice(0, 6) + '...' + address.slice(-4);
     document.getElementById('walletAddress').innerText = short;
-    document.getElementById('connectBtn').innerText = "Terhubung";
-    document.getElementById('walletBadge').innerText = "Online";
-    document.getElementById('walletBadge').className = "wallet-badge connected";
+    document.getElementById('connectBtn').innerText    = "Terhubung";
+    document.getElementById('walletBadge').innerText   = "Online";
+    document.getElementById('walletBadge').className   = "wallet-badge connected";
 }
 
-// Detect if connected wallet is admin or authorized doctor
-async function detectRoleFromWallet() {
-    if (!contract || !connectedAddress) return;
+// ─── Detect role from wallet ────────────────────────────────
+async function detectRole() {
+    currentRole        = 'unrecognized';
+    currentPatientName = null;
+
+    if (!contract || !connectedAddress) { currentRole = 'none'; updateRoleUI(); return; }
 
     try {
-        const isAdmin = (await contract.admin()).toLowerCase() === connectedAddress.toLowerCase();
-        const isDoctor = await contract.authorizedDoctors(connectedAddress);
-
-        const roleSelect = document.getElementById('currentRole');
-        if (isAdmin) {
-            roleSelect.value = 'admin';
-        } else if (isDoctor) {
-            roleSelect.value = 'doctor';
-        } else {
-            roleSelect.value = 'patient';
+        // Admin?
+        const adminAddr = await contract.admin();
+        if (adminAddr.toLowerCase() === connectedAddress.toLowerCase()) {
+            currentRole = 'admin'; updateRoleUI(); return;
         }
-        updateUIByRole();
+        // Doctor?
+        const isDoctor = await contract.authorizedDoctors(connectedAddress);
+        if (isDoctor) {
+            currentRole = 'doctor'; updateRoleUI(); return;
+        }
+        // Patient?
+        const pName = await contract.patientNames(connectedAddress);
+        if (pName && pName.trim() !== '') {
+            currentRole        = 'patient';
+            currentPatientName = pName;
+            updateRoleUI(); return;
+        }
+        // Unrecognized
+        currentRole = 'unrecognized';
+        updateRoleUI();
+
     } catch (e) {
-        console.warn("Tidak bisa deteksi peran dari kontrak (mungkin belum deploy):", e.message);
+        console.warn("Tidak bisa deteksi peran:", e.message);
+        currentRole = 'unrecognized';
+        updateRoleUI();
     }
 }
 
-// ============================================================
-// UI ROLE MANAGEMENT
-// ============================================================
-
-function updateUIByRole() {
-    const role = document.getElementById('currentRole').value;
+// ─── Sync UI to current role ─────────────────────────────────
+function updateRoleUI() {
     const inputForm = document.getElementById('inputForm');
-    inputForm.classList.toggle('hidden', role !== 'doctor');
-    renderChain();
+    const roleBadge = document.getElementById('roleBadge');
+
+    // Only doctors and admin can add records
+    inputForm.classList.toggle('hidden', currentRole !== 'doctor' && currentRole !== 'admin');
+
+    const labels = {
+        'none':         { text: 'Tidak Terhubung',              cls: 'role-none'    },
+        'unrecognized': { text: 'Tamu (Wallet Tidak Dikenal)',   cls: 'role-guest'   },
+        'patient':      { text: `Pasien: ${currentPatientName}`, cls: 'role-patient' },
+        'doctor':       { text: 'Dokter',                        cls: 'role-doctor'  },
+        'admin':        { text: 'Admin IT',                      cls: 'role-admin'   },
+    };
+    const info = labels[currentRole] || labels['none'];
+    roleBadge.innerText = info.text;
+    roleBadge.className = `role-badge ${info.cls}`;
 }
 
 // ============================================================
-// RENDER CHAIN — grouped by patient into columns
+// RENDER CHAIN
 // ============================================================
 
 async function renderChain() {
-    const chainEl = document.getElementById('chain');
+    const chainEl   = document.getElementById('chain');
     const statusBar = document.getElementById('status');
-    const role = document.getElementById('currentRole').value;
+
+    if (currentRole === 'none') {
+        chainEl.innerHTML   = '<div class="loading">Hubungkan MetaMask untuk melihat data.</div>';
+        statusBar.innerText = "Tidak terhubung";
+        statusBar.className = "status-bar invalid";
+        return;
+    }
 
     chainEl.innerHTML = '<div class="loading">Memuat data...</div>';
 
-    // If connected to contract, read from blockchain
-    if (contract && CONTRACT_ADDRESS !== "0xYOUR_CONTRACT_ADDRESS_HERE") {
+    if (contract && CONTRACT_ADDRESS !== "0xYOUR_NEW_CONTRACT_ADDRESS_HERE") {
         try {
-            const total = await contract.totalRecords();
-
-            // Collect all on-chain records
+            const total     = await contract.totalRecords();
             const allBlocks = [];
 
-            // Genesis block always first
-            allBlocks.push({
-                index: 0,
-                patientName: "Genesis Block",
-                diagnosis: "System Initialization",
-                timestamp: new Date().toISOString(),
-                previousHash: "0000000000000000",
-                hash: "ETHEREUM_GENESIS",
-                isGenesis: true
-            });
-
             for (let i = 0; i < total; i++) {
-                const [name, diagnosis, timestamp, addedBy] = await contract.getRecord(i);
+                const [name, diagnosis, timestamp, addedBy, isPrivate] = await contract.getRecord(i);
                 allBlocks.push({
-                    index: i + 1,
+                    index:       i + 1,
                     patientName: name,
-                    diagnosis: diagnosis,
-                    timestamp: new Date(timestamp * 1000).toISOString(),
+                    diagnosis,
+                    timestamp:   new Date(Number(timestamp) * 1000).toISOString(),
                     previousHash: "On-Chain (Ethereum)",
-                    hash: "Verified by Ethereum Network",
-                    addedBy: addedBy
+                    hash:        "Verified by Ethereum Network",
+                    addedBy,
+                    isPrivate,
+                    recordIndex: i
                 });
             }
 
-            renderGroupedChain(chainEl, allBlocks, role);
+            const visible = filterBlocksByRole(allBlocks);
+            renderGroupedChain(chainEl, visible);
 
             statusBar.innerText = "SISTEM AMAN: Data Terverifikasi di Jaringan Ethereum";
             statusBar.className = "status-bar valid";
@@ -258,31 +255,57 @@ async function renderChain() {
         }
     }
 
-    // Fallback: local simulation chain
-    const isValid = localChain.isChainValid();
-
+    // Fallback local chain
+    const isValid     = localChain.isChainValid();
     const localBlocks = localChain.chain.map((block, index) => {
         let blockValid = true;
         if (index > 0) {
             const prev = localChain.chain[index - 1];
-            blockValid = (block.hash === block.calculateHash() && block.previousHash === prev.hash);
+            blockValid = block.hash === block.calculateHash() && block.previousHash === prev.hash;
         }
         return { ...block, blockValid, isLocal: true, localIndex: index };
     });
 
-    renderGroupedChain(chainEl, localBlocks, role);
-
+    renderGroupedChain(chainEl, localBlocks);
     statusBar.innerText = isValid
         ? "MODE SIMULASI LOKAL: Integritas Data Terverifikasi"
         : "PERINGATAN: Terdeteksi Manipulasi Data pada Ledger!";
     statusBar.className = `status-bar ${isValid ? 'valid' : 'invalid'}`;
 }
 
-// Groups blocks by patientName and renders them as side-by-side columns
-function renderGroupedChain(chainEl, blocks, role) {
+// ─── Filter records by role ──────────────────────────────────
+function filterBlocksByRole(blocks) {
+    switch (currentRole) {
+        case 'unrecognized':
+            // Only public records
+            return blocks.filter(b => !b.isPrivate);
+
+        case 'patient':
+            // Own records (public + private) + all other public records
+            return blocks.filter(b =>
+                !b.isPrivate ||
+                b.patientName.toLowerCase() === currentPatientName.toLowerCase()
+            );
+
+        case 'doctor':
+        case 'admin':
+            // All records
+            return blocks;
+
+        default:
+            return [];
+    }
+}
+
+// ─── Grouped column renderer ─────────────────────────────────
+function renderGroupedChain(chainEl, blocks) {
     chainEl.innerHTML = '';
 
-    // Build a map: patientName → [blocks...]
+    if (blocks.length === 0) {
+        chainEl.innerHTML = '<div class="loading">Tidak ada rekam medis yang dapat ditampilkan.</div>';
+        return;
+    }
+
     const groups = new Map();
     blocks.forEach(block => {
         const key = block.patientName;
@@ -290,7 +313,6 @@ function renderGroupedChain(chainEl, blocks, role) {
         groups.get(key).push(block);
     });
 
-    // Outer wrapper for horizontal scroll if many patients
     const grid = document.createElement('div');
     grid.className = 'chain-grid';
 
@@ -298,22 +320,16 @@ function renderGroupedChain(chainEl, blocks, role) {
         const col = document.createElement('div');
         col.className = 'chain-column';
 
-        // Column header label
         const header = document.createElement('div');
         header.className = 'chain-column-header';
-        header.innerHTML = `${patientName}`;
+        header.innerHTML = `<span>🩺</span> ${patientName}`;
         col.appendChild(header);
 
-        // Render each block in this patient's column (newest on top)
         const blocksWrapper = document.createElement('div');
         blocksWrapper.className = 'chain-column-blocks';
 
-        // Reverse so newest block appears at top (matching original column-reverse behaviour)
         [...patientBlocks].reverse().forEach((block, colIdx) => {
-            const blockEl = buildBlockElement(block, role, block.localIndex ?? -1);
-
-            // Add a visual chain connector arrow between blocks (except after last)
-            blocksWrapper.appendChild(blockEl);
+            blocksWrapper.appendChild(buildBlockElement(block));
             if (colIdx < patientBlocks.length - 1) {
                 const connector = document.createElement('div');
                 connector.className = 'chain-connector';
@@ -329,13 +345,35 @@ function renderGroupedChain(chainEl, blocks, role) {
     chainEl.appendChild(grid);
 }
 
-function buildBlockElement(block, role, localIndex = -1) {
+// ─── Build single block element ──────────────────────────────
+function buildBlockElement(block) {
     const el = document.createElement('div');
     const isInvalid = block.blockValid === false;
-    el.className = `block ${isInvalid ? 'is-invalid' : ''}`;
+    el.className = `block ${isInvalid ? 'is-invalid' : ''} ${block.isPrivate ? 'is-private' : ''}`;
 
-    const tamperBtn = (block.isLocal && role === 'admin' && localIndex > 0)
-        ? `<button class="tamper-btn" onclick="tamperData(${localIndex})">⚠️ Edit (Simulasi Tamper)</button>`
+    // Tamper button — local simulation admin only
+    const tamperBtn = (block.isLocal && currentRole === 'admin' && block.localIndex > 0)
+        ? `<button class="tamper-btn" onclick="tamperData(${block.localIndex})">⚠️ Edit (Simulasi Tamper)</button>`
+        : '';
+
+    // Privacy toggle — patient viewing their own record
+    let privacyBtn = '';
+    if (
+        currentRole === 'patient' &&
+        currentPatientName &&
+        block.patientName.toLowerCase() === currentPatientName.toLowerCase() &&
+        !block.isLocal
+    ) {
+        const label = block.isPrivate
+            ? '🔒 Privat — Klik untuk Publik'
+            : '🌐 Publik — Klik untuk Privat';
+        privacyBtn = `<button class="privacy-btn ${block.isPrivate ? 'is-private-btn' : ''}"
+            onclick="togglePrivacy(${block.recordIndex})">${label}</button>`;
+    }
+
+    // Privacy indicator shown to doctor / admin
+    const privacyIndicator = ((currentRole === 'doctor' || currentRole === 'admin') && block.isPrivate)
+        ? `<span class="privacy-indicator">🔒 Privat</span>`
         : '';
 
     const addedByHtml = block.addedBy
@@ -346,41 +384,59 @@ function buildBlockElement(block, role, localIndex = -1) {
         <div class="block-header">
             <span>BLOCK #${block.index}</span>
             <span>${new Date(block.timestamp).toLocaleString()}</span>
+            ${privacyIndicator}
         </div>
         <div class="block-data">
-            ${block.patientName}: <span style="color: var(--primary)">${block.diagnosis}</span>
+            🩺 ${block.patientName}: <span style="color: var(--primary)">${block.diagnosis}</span>
         </div>
         <small>PREVIOUS HASH:</small>
         <span class="hash-label">${block.previousHash}</span>
         <small>CURRENT HASH:</small>
         <span class="hash-label" style="color:#0f172a">${block.hash}</span>
         ${addedByHtml}
+        ${privacyBtn}
         ${tamperBtn}
     `;
     return el;
 }
 
 // ============================================================
-// ADD BLOCK
+// TOGGLE PRIVACY (patient only)
+// ============================================================
+
+async function togglePrivacy(recordIndex) {
+    if (currentRole !== 'patient') return;
+    try {
+        document.getElementById('status').innerText = "⏳ Mengubah status privasi...";
+        const tx = await contract.togglePrivacy(recordIndex);
+        await tx.wait();
+        await renderChain();
+    } catch (err) {
+        if (err.code === 4001) {
+            alert("Transaksi dibatalkan.");
+        } else {
+            alert("Gagal mengubah privasi:\n" + (err.reason || err.message));
+        }
+        await renderChain();
+    }
+}
+
+// ============================================================
+// ADD BLOCK (doctor / admin only)
 // ============================================================
 
 async function addNewBlock() {
-    const role = document.getElementById('currentRole').value;
-    if (role !== 'doctor') {
+    if (currentRole !== 'doctor' && currentRole !== 'admin') {
         alert("Akses Ditolak: Hanya Dokter yang dapat menambahkan rekam medis.");
         return;
     }
 
     const pName = document.getElementById('patientName');
-    const diag = document.getElementById('diagnosis');
+    const diag  = document.getElementById('diagnosis');
 
-    if (!pName.value || !diag.value) {
-        alert("Harap isi semua data!");
-        return;
-    }
+    if (!pName.value || !diag.value) { alert("Harap isi semua data!"); return; }
 
-    // If MetaMask connected and contract ready → write to blockchain
-    if (contract && CONTRACT_ADDRESS !== "0xYOUR_CONTRACT_ADDRESS_HERE") {
+    if (contract && CONTRACT_ADDRESS !== "0xYOUR_NEW_CONTRACT_ADDRESS_HERE") {
         try {
             document.getElementById('status').innerText = "⏳ Mengirim transaksi ke Ethereum...";
             const tx = await contract.addRecord(pName.value, diag.value);
@@ -399,7 +455,7 @@ async function addNewBlock() {
         return;
     }
 
-    // Fallback: local simulation
+    // Fallback local
     localChain.addBlock(pName.value, diag.value);
     pName.value = ''; diag.value = '';
     renderChain();
@@ -410,31 +466,17 @@ async function addNewBlock() {
 // ============================================================
 
 function tamperData(index) {
-    if (document.getElementById('currentRole').value !== 'admin') {
-        alert("Akses Ditolak!");
-        return;
-    }
+    if (currentRole !== 'admin') { alert("Akses Ditolak!"); return; }
     const newData = prompt("Ubah Diagnosa Pasien secara paksa (simulasi tamper):", "Sehat Walafiat");
-    if (newData) {
-        localChain.chain[index].diagnosis = newData;
-        renderChain();
-    }
+    if (newData) { localChain.chain[index].diagnosis = newData; renderChain(); }
 }
 
 // ============================================================
-// INIT — runs on page load
+// INIT — page load
 // ============================================================
+document.getElementById('chain').innerHTML =
+    '<div class="loading">Hubungkan MetaMask untuk melihat data.</div>';
+document.getElementById('status').innerText = "Tidak terhubung — Hubungkan MetaMask";
+document.getElementById('status').className = "status-bar invalid";
 
-// On page load, show chain in read-only mode immediately (no wallet needed)
-async function initReadOnly() {
-    try {
-        const readProvider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC);
-        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
-        await renderChain(); // loads chain for everyone instantly
-    } catch (e) {
-        console.warn("Read-only init failed:", e.message);
-    }
-}
-
-updateUIByRole();
-initReadOnly();
+updateRoleUI();
