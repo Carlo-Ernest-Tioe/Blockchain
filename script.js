@@ -8,8 +8,7 @@
 // FRONTEND JAVASCRIPT
 // ============================================================
 
-// --- Paste your NEW deployed contract address here after redeploying ---
-const CONTRACT_ADDRESS = "0x2ef015659F930979DFE5356Ebcf5dB36Bd8EE888";
+const CONTRACT_ADDRESS = "0x2EF59B36540950b96538AF01C976e3e906F69cD8";
 
 const CONTRACT_ABI = [
     // Write
