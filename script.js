@@ -321,7 +321,7 @@ function renderGroupedChain(chainEl, blocks) {
 
         const header = document.createElement('div');
         header.className = 'chain-column-header';
-        header.innerHTML = `<span>🩺</span> ${patientName}`;
+        header.innerHTML = `${patientName}`;
         col.appendChild(header);
 
         const blocksWrapper = document.createElement('div');
@@ -386,7 +386,7 @@ function buildBlockElement(block) {
             ${privacyIndicator}
         </div>
         <div class="block-data">
-            🩺 ${block.patientName}: <span style="color: var(--primary)">${block.diagnosis}</span>
+            ${block.patientName}: <span style="color: var(--primary)">${block.diagnosis}</span>
         </div>
         <small>PREVIOUS HASH:</small>
         <span class="hash-label">${block.previousHash}</span>
