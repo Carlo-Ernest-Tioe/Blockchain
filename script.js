@@ -223,7 +223,7 @@ async function renderChain() {
 
     chainEl.innerHTML = '<div class="loading">Memuat data...</div>';
 
-    if (contract && CONTRACT_ADDRESS !== "0x2EF59B36540950b96538AF01C976e3e906F69cD8") {
+    if (contract && CONTRACT_ADDRESS === "0x2EF59B36540950b96538AF01C976e3e906F69cD8") {
         try {
             const total     = await contract.totalRecords();
             const allBlocks = [];
@@ -435,7 +435,7 @@ async function addNewBlock() {
 
     if (!pName.value || !diag.value) { alert("Harap isi semua data!"); return; }
 
-    if (contract && CONTRACT_ADDRESS !== "0x2EF59B36540950b96538AF01C976e3e906F69cD8") {
+    if (contract && CONTRACT_ADDRESS === "0x2EF59B36540950b96538AF01C976e3e906F69cD8") {
         try {
             document.getElementById('status').innerText = "⏳ Mengirim transaksi ke Ethereum...";
             const tx = await contract.addRecord(pName.value, diag.value);
