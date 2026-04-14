@@ -364,15 +364,15 @@ function buildBlockElement(block) {
         !block.isLocal
     ) {
         const label = block.isPrivate
-            ? '🔒 Privat — Klik untuk Publik'
-            : '🌐 Publik — Klik untuk Privat';
+            ? 'Privat — Klik untuk Publik'
+            : 'Publik — Klik untuk Privat';
         privacyBtn = `<button class="privacy-btn ${block.isPrivate ? 'is-private-btn' : ''}"
             onclick="togglePrivacy(${block.recordIndex})">${label}</button>`;
     }
 
     // Privacy indicator shown to doctor / admin
     const privacyIndicator = ((currentRole === 'doctor' || currentRole === 'admin') && block.isPrivate)
-        ? `<span class="privacy-indicator">🔒 Privat</span>`
+        ? `<span class="privacy-indicator">Privat</span>`
         : '';
 
     const addedByHtml = block.addedBy
