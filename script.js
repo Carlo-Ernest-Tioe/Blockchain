@@ -8,25 +8,29 @@
 // FRONTEND JAVASCRIPT
 // ============================================================
 
-const CONTRACT_ADDRESS = "0x2EF59B36540950b96538AF01C976e3e906F69cD8";
+// --- Paste your NEW deployed contract address here ---
+const CONTRACT_ADDRESS = "0xc2256312dF95adc54590f50970d4c00be0c0f16d";
 
 const CONTRACT_ABI = [
     // Write
-    "function addRecord(string memory _name, string memory _diagnosis) public",
-    "function togglePrivacy(uint _index) public",
+    "function addRecord(uint256 _patientId, string memory _diagnosis) public",
+    "function editRecord(uint256 _recordIndex, string memory _newDiagnosis) public",
+    "function togglePrivacy(uint256 _recordIndex) public",
     "function authorizeDoctor(address _doc) public",
     "function revokeDoctor(address _doc) public",
     "function authorizePatient(address _patient, string memory _name) public",
     "function revokePatient(address _patient) public",
     // Read
-    "function getRecord(uint _index) public view returns (string, string, uint256, address, bool)",
-    "function totalRecords() public view returns (uint)",
+    "function getRecord(uint256 _index) public view returns (uint256, string, uint256, address, bool)",
+    "function getRecordHistory(uint256 _index) public view returns (string[], uint256[])",
+    "function totalRecords() public view returns (uint256)",
     "function authorizedDoctors(address) public view returns (bool)",
-    "function patientNames(address) public view returns (string)",
+    "function getPatientInfo(address _wallet) public view returns (uint256, string, bool)",
+    "function patientIdToName(uint256) public view returns (string)",
+    "function getNextPatientId() public view returns (uint256)",
     "function admin() public view returns (address)"
 ];
 
-// Public read-only RPC — used for unrecognized wallets reading public records
 const SEPOLIA_RPC = "https://eth-sepolia.g.alchemy.com/v2/demo";
 
 // ─── App State ─────────────────────────────────────────────────
@@ -35,24 +39,28 @@ let signer           = null;
 let contract         = null;
 let connectedAddress = null;
 
-// Role: 'none' | 'unrecognized' | 'patient' | 'doctor' | 'admin'
 let currentRole        = 'none';
+let currentPatientId   = null;
 let currentPatientName = null;
+
+const patientNameCache = new Map();
 
 // ─── Local simulation chain (fallback only) ────────────────────
 class Block {
-    constructor(index, timestamp, patientName, diagnosis, previousHash = '') {
+    constructor(index, timestamp, patientId, patientName, diagnosis, previousHash = '') {
         this.index        = index;
         this.timestamp    = timestamp;
+        this.patientId    = patientId;
         this.patientName  = patientName;
         this.diagnosis    = diagnosis;
         this.previousHash = previousHash;
         this.hash         = this.calculateHash();
         this.isPrivate    = false;
+        this.history      = [];
     }
     calculateHash() {
         return CryptoJS.SHA256(
-            this.index + this.previousHash + this.timestamp + this.patientName + this.diagnosis
+            this.index + this.previousHash + this.timestamp + this.patientId + this.diagnosis
         ).toString();
     }
 }
@@ -60,13 +68,13 @@ class Block {
 class Blockchain {
     constructor() { this.chain = [this.createGenesisBlock()]; }
     createGenesisBlock() {
-        return new Block(0, new Date().toISOString(), "Genesis Block", "System Initialization", "0");
+        return new Block(0, new Date().toISOString(), 0, "Genesis", "System Initialization", "0");
     }
     getLatestBlock() { return this.chain[this.chain.length - 1]; }
-    addBlock(patientName, diagnosis) {
+    addBlock(patientId, patientName, diagnosis) {
         const b = new Block(
             this.chain.length, new Date().toISOString(),
-            patientName, diagnosis, this.getLatestBlock().hash
+            patientId, patientName, diagnosis, this.getLatestBlock().hash
         );
         this.chain.push(b);
     }
@@ -128,7 +136,8 @@ function handleAccountChange(accounts) {
 
 function disconnectWallet() {
     provider = null; signer = null; contract = null;
-    connectedAddress = null; currentRole = 'none'; currentPatientName = null;
+    connectedAddress = null; currentRole = 'none';
+    currentPatientId = null; currentPatientName = null;
 
     document.getElementById('walletAddress').innerText = "Belum terhubung";
     document.getElementById('connectBtn').innerText    = "Hubungkan MetaMask";
@@ -150,35 +159,31 @@ function updateWalletUI(address) {
     document.getElementById('walletBadge').className   = "wallet-badge connected";
 }
 
-// ─── Detect role from wallet ────────────────────────────────
+// ─── Detect role ────────────────────────────────────────────
 async function detectRole() {
-    currentRole        = 'unrecognized';
-    currentPatientName = null;
+    currentRole = 'unrecognized';
+    currentPatientId = null; currentPatientName = null;
 
     if (!contract || !connectedAddress) { currentRole = 'none'; updateRoleUI(); return; }
 
     try {
-        // Admin?
         const adminAddr = await contract.admin();
         if (adminAddr.toLowerCase() === connectedAddress.toLowerCase()) {
             currentRole = 'admin'; updateRoleUI(); return;
         }
-        // Doctor?
         const isDoctor = await contract.authorizedDoctors(connectedAddress);
         if (isDoctor) {
             currentRole = 'doctor'; updateRoleUI(); return;
         }
-        // Patient?
-        const pName = await contract.patientNames(connectedAddress);
-        if (pName && pName.trim() !== '') {
+        const [pid, pName, exists] = await contract.getPatientInfo(connectedAddress);
+        if (exists) {
             currentRole        = 'patient';
+            currentPatientId   = pid.toNumber();
             currentPatientName = pName;
             updateRoleUI(); return;
         }
-        // Unrecognized
         currentRole = 'unrecognized';
         updateRoleUI();
-
     } catch (e) {
         console.warn("Tidak bisa deteksi peran:", e.message);
         currentRole = 'unrecognized';
@@ -186,24 +191,34 @@ async function detectRole() {
     }
 }
 
-// ─── Sync UI to current role ─────────────────────────────────
 function updateRoleUI() {
     const inputForm = document.getElementById('inputForm');
     const roleBadge = document.getElementById('roleBadge');
 
-    // Only doctors and admin can add records
     inputForm.classList.toggle('hidden', currentRole !== 'doctor' && currentRole !== 'admin');
 
     const labels = {
-        'none':         { text: 'Tidak Terhubung',              cls: 'role-none'    },
-        'unrecognized': { text: 'Tamu (Wallet Tidak Dikenal)',   cls: 'role-guest'   },
-        'patient':      { text: `Pasien: ${currentPatientName}`, cls: 'role-patient' },
-        'doctor':       { text: 'Dokter',                        cls: 'role-doctor'  },
-        'admin':        { text: 'Admin IT',                      cls: 'role-admin'   },
+        'none':         { text: 'Tidak Terhubung',                                        cls: 'role-none'    },
+        'unrecognized': { text: 'Tamu (Wallet Tidak Dikenal)',                             cls: 'role-guest'   },
+        'patient':      { text: `Pasien: ${currentPatientName} [ID: ${currentPatientId}]`, cls: 'role-patient' },
+        'doctor':       { text: 'Dokter',                                                  cls: 'role-doctor'  },
+        'admin':        { text: 'Admin IT',                                                cls: 'role-admin'   },
     };
     const info = labels[currentRole] || labels['none'];
     roleBadge.innerText = info.text;
     roleBadge.className = `role-badge ${info.cls}`;
+}
+
+async function resolvePatientName(patientId) {
+    const id = typeof patientId === 'object' ? patientId.toNumber() : Number(patientId);
+    if (patientNameCache.has(id)) return patientNameCache.get(id);
+    try {
+        const name = await contract.patientIdToName(id);
+        patientNameCache.set(id, name || `Pasien #${id}`);
+        return patientNameCache.get(id);
+    } catch {
+        return `Pasien #${id}`;
+    }
 }
 
 // ============================================================
@@ -223,29 +238,37 @@ async function renderChain() {
 
     chainEl.innerHTML = '<div class="loading">Memuat data...</div>';
 
-    if (contract && CONTRACT_ADDRESS === "0x2EF59B36540950b96538AF01C976e3e906F69cD8") {
+    if (contract) {
         try {
             const total     = await contract.totalRecords();
             const allBlocks = [];
 
             for (let i = 0; i < total; i++) {
-                const [name, diagnosis, timestamp, addedBy, isPrivate] = await contract.getRecord(i);
+                const [patientId, diagnosis, timestamp, addedBy, isPrivate] =
+                    await contract.getRecord(i);
+                const [diagnosisHistory, historyTimestamps] =
+                    await contract.getRecordHistory(i);
+
+                const pid         = patientId.toNumber();
+                const patientName = await resolvePatientName(pid);
+
                 allBlocks.push({
-                    index:       i + 1,
-                    patientName: name,
+                    recordIndex:  i,
+                    patientId:    pid,
+                    patientName,
                     diagnosis,
-                    timestamp:   new Date(Number(timestamp) * 1000).toISOString(),
-                    previousHash: "On-Chain (Ethereum)",
-                    hash:        "Verified by Ethereum Network",
+                    timestamp:    new Date(Number(timestamp) * 1000).toISOString(),
                     addedBy,
                     isPrivate,
-                    recordIndex: i
+                    history: diagnosisHistory.map((d, idx) => ({
+                        diagnosis: d,
+                        timestamp: new Date(Number(historyTimestamps[idx]) * 1000).toISOString()
+                    }))
                 });
             }
 
             const visible = filterBlocksByRole(allBlocks);
             renderGroupedChain(chainEl, visible);
-
             statusBar.innerText = "SISTEM AMAN: Data Terverifikasi di Jaringan Ethereum";
             statusBar.className = "status-bar valid";
             return;
@@ -254,52 +277,34 @@ async function renderChain() {
         }
     }
 
-    // Fallback local chain
-    const isValid     = localChain.isChainValid();
+    // Fallback local
     const localBlocks = localChain.chain.map((block, index) => {
         let blockValid = true;
         if (index > 0) {
             const prev = localChain.chain[index - 1];
             blockValid = block.hash === block.calculateHash() && block.previousHash === prev.hash;
         }
-        return { ...block, blockValid, isLocal: true, localIndex: index };
+        return { ...block, blockValid, isLocal: true, localIndex: index, history: [] };
     });
-
     renderGroupedChain(chainEl, localBlocks);
-    statusBar.innerText = isValid
+    statusBar.innerText = localChain.isChainValid()
         ? "MODE SIMULASI LOKAL: Integritas Data Terverifikasi"
         : "PERINGATAN: Terdeteksi Manipulasi Data pada Ledger!";
-    statusBar.className = `status-bar ${isValid ? 'valid' : 'invalid'}`;
+    statusBar.className = `status-bar ${localChain.isChainValid() ? 'valid' : 'invalid'}`;
 }
 
-// ─── Filter records by role ──────────────────────────────────
 function filterBlocksByRole(blocks) {
     switch (currentRole) {
-        case 'unrecognized':
-            // Only public records
-            return blocks.filter(b => !b.isPrivate);
-
-        case 'patient':
-            // Own records (public + private) + all other public records
-            return blocks.filter(b =>
-                !b.isPrivate ||
-                b.patientName.toLowerCase() === currentPatientName.toLowerCase()
-            );
-
+        case 'unrecognized': return blocks.filter(b => !b.isPrivate);
+        case 'patient':      return blocks.filter(b => !b.isPrivate || b.patientId === currentPatientId);
         case 'doctor':
-        case 'admin':
-            // All records
-            return blocks;
-
-        default:
-            return [];
+        case 'admin':        return blocks;
+        default:             return [];
     }
 }
 
-// ─── Grouped column renderer ─────────────────────────────────
 function renderGroupedChain(chainEl, blocks) {
     chainEl.innerHTML = '';
-
     if (blocks.length === 0) {
         chainEl.innerHTML = '<div class="loading">Tidak ada rekam medis yang dapat ditampilkan.</div>';
         return;
@@ -307,7 +312,7 @@ function renderGroupedChain(chainEl, blocks) {
 
     const groups = new Map();
     blocks.forEach(block => {
-        const key = block.patientName;
+        const key = block.patientId !== undefined ? block.patientId : block.patientName;
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(block);
     });
@@ -315,13 +320,19 @@ function renderGroupedChain(chainEl, blocks) {
     const grid = document.createElement('div');
     grid.className = 'chain-grid';
 
-    groups.forEach((patientBlocks, patientName) => {
+    groups.forEach((patientBlocks) => {
         const col = document.createElement('div');
         col.className = 'chain-column';
 
+        const firstBlock  = patientBlocks[0];
+        const displayName = firstBlock.patientName || `Pasien #${firstBlock.patientId}`;
+        const idBadge     = firstBlock.patientId
+            ? `<span class="patient-id-badge">ID: ${firstBlock.patientId}</span>`
+            : '';
+
         const header = document.createElement('div');
         header.className = 'chain-column-header';
-        header.innerHTML = `${patientName}`;
+        header.innerHTML = `${displayName} ${idBadge}`;
         col.appendChild(header);
 
         const blocksWrapper = document.createElement('div');
@@ -344,59 +355,122 @@ function renderGroupedChain(chainEl, blocks) {
     chainEl.appendChild(grid);
 }
 
-// ─── Build single block element ──────────────────────────────
 function buildBlockElement(block) {
     const el = document.createElement('div');
-    const isInvalid = block.blockValid === false;
-    el.className = `block ${isInvalid ? 'is-invalid' : ''} ${block.isPrivate ? 'is-private' : ''}`;
+    el.className = `block ${block.blockValid === false ? 'is-invalid' : ''} ${block.isPrivate ? 'is-private' : ''}`;
 
-    // Tamper button — local simulation admin only
     const tamperBtn = (block.isLocal && currentRole === 'admin' && block.localIndex > 0)
         ? `<button class="tamper-btn" onclick="tamperData(${block.localIndex})">⚠️ Edit (Simulasi Tamper)</button>`
         : '';
 
-    // Privacy toggle — patient viewing their own record
     let privacyBtn = '';
-    if (
-        currentRole === 'patient' &&
-        currentPatientName &&
-        block.patientName.toLowerCase() === currentPatientName.toLowerCase() &&
-        !block.isLocal
-    ) {
-        const label = block.isPrivate
-            ? 'Privat — Klik untuk Publik'
-            : 'Publik — Klik untuk Privat';
+    if (currentRole === 'patient' && block.patientId === currentPatientId && !block.isLocal) {
+        const label = block.isPrivate ? '🔓 Privat — Klik untuk Publik' : '🔒 Publik — Klik untuk Privat';
         privacyBtn = `<button class="privacy-btn ${block.isPrivate ? 'is-private-btn' : ''}"
             onclick="togglePrivacy(${block.recordIndex})">${label}</button>`;
     }
 
-    // Privacy indicator shown to doctor / admin
+    let editSection = '';
+    if (currentRole === 'patient' && block.patientId === currentPatientId && !block.isLocal) {
+        editSection = `
+            <div class="edit-section">
+                <button class="edit-toggle-btn" onclick="toggleEditForm(${block.recordIndex})">
+                    ✏️ Koreksi Diagnosis
+                </button>
+                <div class="edit-form hidden" id="edit-form-${block.recordIndex}">
+                    <input type="text" class="edit-input" id="edit-input-${block.recordIndex}"
+                        placeholder="Masukkan diagnosis yang benar..." />
+                    <div class="edit-form-actions">
+                        <button class="edit-save-btn" onclick="submitEdit(${block.recordIndex})">Simpan</button>
+                        <button class="edit-cancel-btn" onclick="toggleEditForm(${block.recordIndex})">Batal</button>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    let historySection = '';
+    if (block.history && block.history.length > 0) {
+        const historyItems = [...block.history].reverse().map((h, i) => `
+            <div class="history-item">
+                <span class="history-label">Entri #${block.history.length - i}</span>
+                <span class="history-diagnosis">${h.diagnosis}</span>
+                <span class="history-time">${new Date(h.timestamp).toLocaleString()}</span>
+            </div>`).join('');
+
+        historySection = `
+            <button class="history-toggle-btn" onclick="toggleHistory(${block.recordIndex})" id="history-btn-${block.recordIndex}">
+                📋 Tampilkan Riwayat (${block.history.length} perubahan)
+            </button>
+            <div class="history-panel hidden" id="history-${block.recordIndex}">
+                ${historyItems}
+            </div>`;
+    }
+
     const privacyIndicator = ((currentRole === 'doctor' || currentRole === 'admin') && block.isPrivate)
-        ? `<span class="privacy-indicator">Privat</span>`
+        ? `<span class="privacy-indicator">🔒 Privat</span>`
         : '';
 
     const addedByHtml = block.addedBy
-        ? `<small>ADDED BY:</small><span class="hash-label">${block.addedBy}</span>`
+        ? `<small>DITAMBAHKAN OLEH:</small><span class="hash-label">${block.addedBy}</span>`
         : '';
 
     el.innerHTML = `
         <div class="block-header">
-            <span>BLOCK #${block.index}</span>
-            <span>${new Date(block.timestamp).toLocaleString()}</span>
+            <span class="block-timestamp">${new Date(block.timestamp).toLocaleString()}</span>
             ${privacyIndicator}
+            ${tamperBtn}
         </div>
         <div class="block-data">
-            ${block.patientName}: <span style="color: var(--primary)">${block.diagnosis}</span>
+            ${block.patientName}:
+            <span class="block-diagnosis">${block.diagnosis}</span>
         </div>
-        <small>PREVIOUS HASH:</small>
-        <span class="hash-label">${block.previousHash}</span>
-        <small>CURRENT HASH:</small>
-        <span class="hash-label" style="color:#0f172a">${block.hash}</span>
         ${addedByHtml}
+        ${historySection}
+        ${editSection}
         ${privacyBtn}
-        ${tamperBtn}
     `;
     return el;
+}
+
+// ─── Toggle helpers ──────────────────────────────────────────
+function toggleEditForm(recordIndex) {
+    const form = document.getElementById(`edit-form-${recordIndex}`);
+    form.classList.toggle('hidden');
+    if (!form.classList.contains('hidden')) {
+        document.getElementById(`edit-input-${recordIndex}`).focus();
+    }
+}
+
+function toggleHistory(recordIndex) {
+    const panel = document.getElementById(`history-${recordIndex}`);
+    const btn   = document.getElementById(`history-btn-${recordIndex}`);
+    const isHidden = panel.classList.toggle('hidden');
+    btn.innerText = isHidden
+        ? btn.innerText.replace('Sembunyikan', 'Tampilkan')
+        : btn.innerText.replace('Tampilkan', 'Sembunyikan');
+}
+
+// ============================================================
+// SUBMIT EDIT (patient only)
+// ============================================================
+
+async function submitEdit(recordIndex) {
+    if (currentRole !== 'patient') return;
+    const input   = document.getElementById(`edit-input-${recordIndex}`);
+    const newDiag = input.value.trim();
+    if (!newDiag) { alert("Harap isi diagnosis yang benar!"); return; }
+
+    try {
+        document.getElementById('status').innerText = "⏳ Menyimpan koreksi ke blockchain...";
+        const tx = await contract.editRecord(recordIndex, newDiag);
+        await tx.wait();
+        input.value = '';
+        await renderChain();
+    } catch (err) {
+        if (err.code === 4001) { alert("Transaksi dibatalkan."); }
+        else { alert("Gagal menyimpan koreksi:\n" + (err.reason || err.message)); }
+        await renderChain();
+    }
 }
 
 // ============================================================
@@ -411,11 +485,8 @@ async function togglePrivacy(recordIndex) {
         await tx.wait();
         await renderChain();
     } catch (err) {
-        if (err.code === 4001) {
-            alert("Transaksi dibatalkan.");
-        } else {
-            alert("Gagal mengubah privasi:\n" + (err.reason || err.message));
-        }
+        if (err.code === 4001) { alert("Transaksi dibatalkan."); }
+        else { alert("Gagal mengubah privasi:\n" + (err.reason || err.message)); }
         await renderChain();
     }
 }
@@ -430,33 +501,34 @@ async function addNewBlock() {
         return;
     }
 
-    const pName = document.getElementById('patientName');
-    const diag  = document.getElementById('diagnosis');
+    const pidInput = document.getElementById('patientId');
+    const diag     = document.getElementById('diagnosis');
+    const pid      = parseInt(pidInput.value.trim());
 
-    if (!pName.value || !diag.value) { alert("Harap isi semua data!"); return; }
+    if (!pid || isNaN(pid) || !diag.value.trim()) {
+        alert("Harap isi ID Pasien dan Diagnosa!");
+        return;
+    }
 
-    if (contract && CONTRACT_ADDRESS === "0x2EF59B36540950b96538AF01C976e3e906F69cD8") {
+    if (contract) {
         try {
             document.getElementById('status').innerText = "⏳ Mengirim transaksi ke Ethereum...";
-            const tx = await contract.addRecord(pName.value, diag.value);
+            const tx = await contract.addRecord(pid, diag.value.trim());
             document.getElementById('status').innerText = "⏳ Menunggu konfirmasi blok...";
             await tx.wait();
-            pName.value = ''; diag.value = '';
+            pidInput.value = ''; diag.value = '';
             await renderChain();
         } catch (err) {
-            if (err.code === 4001) {
-                alert("Transaksi dibatalkan oleh pengguna.");
-            } else {
-                alert("Transaksi gagal:\n" + (err.reason || err.message));
-            }
+            if (err.code === 4001) { alert("Transaksi dibatalkan oleh pengguna."); }
+            else { alert("Transaksi gagal:\n" + (err.reason || err.message)); }
             await renderChain();
         }
         return;
     }
 
     // Fallback local
-    localChain.addBlock(pName.value, diag.value);
-    pName.value = ''; diag.value = '';
+    localChain.addBlock(pid, `Pasien #${pid}`, diag.value.trim());
+    pidInput.value = ''; diag.value = '';
     renderChain();
 }
 
@@ -471,11 +543,10 @@ function tamperData(index) {
 }
 
 // ============================================================
-// INIT — page load
+// INIT
 // ============================================================
 document.getElementById('chain').innerHTML =
     '<div class="loading">Hubungkan MetaMask untuk melihat data.</div>';
 document.getElementById('status').innerText = "Tidak terhubung — Hubungkan MetaMask";
 document.getElementById('status').className = "status-bar invalid";
-
 updateRoleUI();

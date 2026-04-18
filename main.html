@@ -25,7 +25,6 @@
         <button id="connectBtn" onclick="connectMetaMask()">Hubungkan MetaMask</button>
         <span class="wallet-badge disconnected" id="walletBadge">Offline</span>
         <span id="walletAddress">Belum terhubung</span>
-        <!-- Role badge — auto-set by detectRole() -->
         <span class="role-badge role-none" id="roleBadge">Tidak Terhubung</span>
     </div>
 
@@ -33,8 +32,9 @@
 
     <!-- Input form — only visible to doctor / admin -->
     <div class="form-group hidden" id="inputForm">
-        <input type="text" id="patientName" placeholder="Nama Pasien...">
-        <input type="text" id="diagnosis"   placeholder="Diagnosa Medis...">
+        <input type="number" id="patientId" placeholder="ID Pasien..." min="1" />
+        <input type="text" id="patientNameDisplay" placeholder="Nama Pasien..." />
+        <input type="text"   id="diagnosis" placeholder="Diagnosa Medis..." />
         <button class="btn-add" onclick="addNewBlock()">Simpan ke Ledger</button>
     </div>
 

@@ -22,6 +22,9 @@ body {
     box-shadow: 0 0 10px rgba(0,0,0,0.3);
     padding: 2em 5em 2em 5em;
     background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 header {
@@ -34,6 +37,7 @@ img { margin-right: 0.5em; }
 
 /* ─── Status Bar ─────────────────────────────────────────── */
 .status-bar {
+    width: 100%;
     padding: 10px;
     border-radius: 8px;
     text-align: center;
@@ -48,6 +52,7 @@ img { margin-right: 0.5em; }
 .wallet-section {
     display: flex;
     align-items: center;
+    width: 100%;
     gap: 12px;
     padding: 12px 16px;
     background: #f8fafc;
@@ -103,14 +108,24 @@ img { margin-right: 0.5em; }
 /* ─── Form ───────────────────────────────────────────────── */
 .form-group {
     background: var(--card);
+    width: 700px;
     padding: 20px;
     border-radius: 12px;
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
     margin-bottom: 30px;
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
     gap: 10px;
+    align-items: center;
 }
-input {
+input[type="number"] {
+    width: 110px;
+    flex: none;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+}
+input[type="text"], input:not([type]) {
     flex: 1;
     padding: 12px;
     border: 1px solid #cbd5e1;
@@ -143,8 +158,8 @@ button {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 260px;
-    max-width: 300px;
+    min-width: 270px;
+    max-width: 310px;
 }
 
 .chain-column-header {
@@ -159,9 +174,21 @@ button {
     padding: 7px 10px;
     margin-bottom: 12px;
     letter-spacing: 0.03em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Patient ID badge inside column header */
+.patient-id-badge {
+    font-size: 0.72rem;
+    background: #2563eb;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
 }
 
 .chain-column-blocks {
@@ -192,16 +219,8 @@ button {
     width: 100%;
     box-sizing: border-box;
 }
-.block.is-invalid {
-    border-left-color: var(--danger);
-    animation: shake 0.5s;
-}
-
-/* Private block gets a distinct visual treatment */
-.block.is-private {
-    border-left-color: #8b5cf6;
-    background: #f5f3ff;
-}
+.block.is-invalid { border-left-color: var(--danger); animation: shake 0.5s; }
+.block.is-private { border-left-color: #8b5cf6; background: #f5f3ff; }
 
 .block-header {
     font-size: 0.8rem;
@@ -214,11 +233,15 @@ button {
     gap: 4px;
 }
 
+.block-timestamp { font-size: 0.75rem; color: #94a3b8; }
+
 .block-data {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 600;
-    margin-bottom: 15px;
+    margin-bottom: 12px;
 }
+
+.block-diagnosis { color: var(--primary); }
 
 .hash-label {
     font-size: 0.7rem;
@@ -230,9 +253,10 @@ button {
     border-radius: 4px;
     display: block;
     margin-top: 5px;
+    margin-bottom: 10px;
 }
 
-/* Privacy indicator badge (shown to doctor/admin on private blocks) */
+/* ─── Privacy ────────────────────────────────────────────── */
 .privacy-indicator {
     font-size: 0.7rem;
     background: #ede9fe;
@@ -242,11 +266,10 @@ button {
     font-weight: 600;
 }
 
-/* Privacy toggle button (shown to patient on their own records) */
 .privacy-btn {
     display: block;
     width: 100%;
-    margin-top: 10px;
+    margin-top: 8px;
     padding: 6px 10px;
     font-size: 0.75rem;
     font-weight: 600;
@@ -257,15 +280,127 @@ button {
     cursor: pointer;
     transition: 0.2s;
 }
-.privacy-btn:hover       { background: #ddd6fe; }
-.privacy-btn.is-private-btn {
-    background: #5b21b6;
-    color: #fff;
-    border-color: #5b21b6;
-}
+.privacy-btn:hover { background: #ddd6fe; }
+.privacy-btn.is-private-btn { background: #5b21b6; color: #fff; border-color: #5b21b6; }
 .privacy-btn.is-private-btn:hover { background: #4c1d95; }
 
-/* Tamper button */
+/* ─── History Panel ──────────────────────────────────────── */
+.history-toggle-btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1.5px solid #cbd5e1;
+    background: #f8fafc;
+    color: #475569;
+    cursor: pointer;
+    transition: 0.2s;
+    text-align: left;
+}
+.history-toggle-btn:hover { background: #f1f5f9; }
+.history-toggle-btn.active { background: #e0eaff; border-color: #2563eb44; color: #1e3a5f; }
+
+.history-panel {
+    margin-top: 6px;
+    border-left: 3px solid #e2e8f0;
+    padding-left: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.history-item {
+    background: #f8fafc;
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.history-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.history-diagnosis {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #ef4444;
+    text-decoration: line-through;
+}
+.history-time {
+    font-size: 0.68rem;
+    color: #94a3b8;
+}
+
+/* ─── Edit Section ───────────────────────────────────────── */
+.edit-section { margin-top: 8px; }
+
+.edit-toggle-btn {
+    display: block;
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1.5px solid #fcd34d;
+    background: #fefce8;
+    color: #92400e;
+    cursor: pointer;
+    transition: 0.2s;
+    text-align: left;
+}
+.edit-toggle-btn:hover { background: #fef9c3; }
+
+.edit-form {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.edit-input {
+    width: 100% !important;
+    padding: 8px 10px !important;
+    border: 1.5px solid #fcd34d !important;
+    border-radius: 6px !important;
+    font-size: 0.85rem;
+    box-sizing: border-box;
+    flex: none !important;
+}
+.edit-input:focus { outline: none; border-color: #f59e0b !important; }
+
+.edit-form-actions {
+    display: flex;
+    gap: 6px;
+}
+.edit-save-btn {
+    flex: 1;
+    padding: 7px !important;
+    font-size: 0.8rem;
+    background: #22c55e;
+    color: white;
+    border-radius: 6px;
+}
+.edit-save-btn:hover { background: #16a34a; }
+
+.edit-cancel-btn {
+    flex: 1;
+    padding: 7px !important;
+    font-size: 0.8rem;
+    background: #f1f5f9;
+    color: #475569;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+}
+.edit-cancel-btn:hover { background: #e2e8f0; }
+
+/* ─── Tamper button ──────────────────────────────────────── */
 .tamper-btn {
     position: absolute;
     top: 15px;
@@ -273,10 +408,11 @@ button {
     font-size: 0.7rem;
     background: #f1f5f9;
     border: 1px solid #cbd5e1;
+    padding: 4px 8px !important;
 }
 .tamper-btn:hover { background: #fee2e2; color: var(--danger); }
 
-/* Loading / empty message */
+/* ─── Loading ────────────────────────────────────────────── */
 .loading {
     text-align: center;
     color: #94a3b8;
