@@ -9,7 +9,7 @@
 // ============================================================
 
 // --- Paste your NEW deployed contract address here ---
-const CONTRACT_ADDRESS = "0xc2256312dF95adc54590f50970d4c00be0c0f16d";
+const CONTRACT_ADDRESS = "0xe413386A62F2237Fc1107576e9D3e07BE21d0440";
 
 const CONTRACT_ABI = [
     // Write
@@ -507,15 +507,17 @@ async function addNewBlock() {
         return;
     }
 
-    const pidInput = document.getElementById('patientId');
-    const diag     = document.getElementById('diagnosis');
-    const pid      = parseInt(pidInput.value.trim());
+    const pidInput    = document.getElementById('patientId');
+    const nameDisplay = document.getElementById('patientNameDisplay');
+    const diag        = document.getElementById('diagnosis');
+    const pid         = parseInt(pidInput.value.trim());
 
     if (!pid || isNaN(pid) || !diag.value.trim()) {
         alert("Harap isi ID Pasien dan Diagnosa!");
         return;
     }
 
+    // Save to blockchain
     if (contract) {
         try {
             document.getElementById('status').innerText = "⏳ Mengirim transaksi ke Ethereum...";
@@ -523,10 +525,11 @@ async function addNewBlock() {
             document.getElementById('status').innerText = "⏳ Menunggu konfirmasi blok...";
             await tx.wait();
             pidInput.value = ''; diag.value = '';
+            if (nameDisplay) nameDisplay.value = '';
             await renderChain();
         } catch (err) {
             if (err.code === 4001) { alert("Transaksi dibatalkan oleh pengguna."); }
-            else { alert("Transaksi gagal:\n" + (err.reason || err.message)); }
+            else { alert("Transaksi gagal: " + (err.reason || err.message)); }
             await renderChain();
         }
         return;
@@ -535,6 +538,7 @@ async function addNewBlock() {
     // Fallback local
     localChain.addBlock(pid, `Pasien #${pid}`, diag.value.trim());
     pidInput.value = ''; diag.value = '';
+    if (nameDisplay) nameDisplay.value = '';
     renderChain();
 }
 
