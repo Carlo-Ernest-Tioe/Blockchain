@@ -25,6 +25,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    overflow: hidden;
 }
 
 header {
@@ -143,7 +144,7 @@ button {
 .btn-add:hover { background: #1d4ed8; }
 
 /* ─── Chain Grid ─────────────────────────────────────────── */
-#chain { overflow-x: auto; padding-bottom: 12px; }
+#chain { overflow-x: auto; overflow-y: auto; padding-bottom: 12px; }
 
 .chain-grid {
     display: flex;
@@ -152,6 +153,7 @@ button {
     gap: 24px;
     min-width: max-content;
     padding: 4px 2px;
+    
 }
 
 .chain-column {
