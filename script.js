@@ -214,10 +214,14 @@ async function resolvePatientName(patientId) {
     if (patientNameCache.has(id)) return patientNameCache.get(id);
     try {
         const name = await contract.patientIdToName(id);
-        patientNameCache.set(id, name || `Pasien #${id}`);
-        return patientNameCache.get(id);
+        // Unregistered IDs return "" from Solidity — never cache empty strings
+        const resolved = (name && name.trim() !== '') ? name.trim() : `Pasien #${id}`;
+        patientNameCache.set(id, resolved);
+        return resolved;
     } catch {
-        return `Pasien #${id}`;
+        const fallback = `Pasien #${id}`;
+        patientNameCache.set(id, fallback);
+        return fallback;
     }
 }
 
@@ -310,9 +314,11 @@ function renderGroupedChain(chainEl, blocks) {
         return;
     }
 
+    // Always group strictly by patientId — never by name
+    // This ensures two patients with the same name get separate columns
     const groups = new Map();
     blocks.forEach(block => {
-        const key = block.patientId !== undefined ? block.patientId : block.patientName;
+        const key = block.patientId; // strictly numeric ID only
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(block);
     });
@@ -421,7 +427,7 @@ function buildBlockElement(block) {
             ${tamperBtn}
         </div>
         <div class="block-data">
-            ${block.patientName}:
+            <span class="block-patient-id">#${block.patientId}</span> ${block.patientName}:
             <span class="block-diagnosis">${block.diagnosis}</span>
         </div>
         ${addedByHtml}
