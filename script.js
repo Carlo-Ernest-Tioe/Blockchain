@@ -170,17 +170,17 @@ async function renderChain() {
         for (let i = 0; i < total; i++) {
             const [pId, patientName, diagnosis, timestamp, addedBy, isPrivate] = await contract.getRecord(i);
             const [historyDiag, historyTime] = await contract.getRecordHistory(i);
-            
+
             const pid = pId.toNumber();
-            let name = patientNameCache.get(pid);
-            if (!name) {
-                name = await contract.patientIdToName(pid);
-                name = name || `Pasien #${pid}`;
-                patientNameCache.set(pid, name);
-            }
+            // Use the name stored ON-CHAIN by the doctor — this is the actual patient name
+            const resolvedName = (patientName && patientName.trim() !== '')
+                ? patientName.trim()
+                : `Pasien #${pid}`;
+            // Cache the most recent name for this ID (used by column header)
+            patientNameCache.set(pid, resolvedName);
 
             allBlocks.push({
-                recordIndex: i, patientId: pid, patientName: name,
+                recordIndex: i, patientId: pid, patientName: resolvedName,
                 diagnosis, isPrivate, addedBy,
                 timestamp: new Date(Number(timestamp) * 1000).toISOString(),
                 history: historyDiag.map((d, idx) => ({
@@ -226,7 +226,10 @@ function renderGroupedChain(chainEl, blocks) {
         
         const header = document.createElement('div');
         header.className = 'chain-column-header';
-        header.innerHTML = `${patientBlocks[0].patientName} <span class="patient-id-badge">ID: ${pid}</span>`;
+        // Use the most recently added record's name for the column header
+        const latestBlock = [...patientBlocks].sort((a, b) => b.recordIndex - a.recordIndex)[0];
+        const columnName  = latestBlock.patientName || `Pasien #${pid}`;
+        header.innerHTML = `${columnName} <span class="patient-id-badge">ID: ${pid}</span>`;
         col.appendChild(header);
 
         const blocksWrapper = document.createElement('div');
