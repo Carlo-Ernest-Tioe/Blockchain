@@ -253,7 +253,7 @@ function buildBlockElement(block) {
 
     // Privacy Badge for Authorized Users
     const privacyBadge = ((currentRole === 'doctor' || currentRole === 'admin') && block.isPrivate)
-        ? `<span class="privacy-indicator">🔒 Privat</span>` : '';
+        ? `<span class="privacy-indicator">Privat</span>` : '';
 
     // Added By Wallet Label
     const addedByHtml = block.addedBy 
@@ -271,7 +271,7 @@ function buildBlockElement(block) {
 
         historySection = `
             <button class="history-toggle-btn" onclick="toggleHistory(${block.recordIndex})" id="history-btn-${block.recordIndex}">
-                📋 Tampilkan Riwayat (${block.history.length})
+                Tampilkan Riwayat (${block.history.length})
             </button>
             <div class="history-panel hidden" id="history-${block.recordIndex}">${items}</div>`;
     }
@@ -288,14 +288,14 @@ function buildBlockElement(block) {
                 </div>
             </div>
             <button class="privacy-btn ${block.isPrivate ? 'is-private-btn' : ''}" onclick="togglePrivacy(${block.recordIndex})">
-                ${block.isPrivate ? '🔓 Set Publik' : '🔒 Set Privat'}
+                ${block.isPrivate ? 'Set Publik' : 'Set Privat'}
             </button>`;
     } 
     // --- RESTORED: Admin Tamper Action ---
     else if (currentRole === 'admin') {
         actions = `
             <div class="admin-actions">
-                <button class="tamper-btn" onclick="tamperOnChain(${block.recordIndex})">⚠️ Simulasi Tamper</button>
+                <button class="tamper-btn" onclick="tamperOnChain(${block.recordIndex})">Simulasi Tamper</button>
             </div>`;
     }
 
@@ -324,7 +324,7 @@ function toggleHistory(idx) {
     const p = document.getElementById(`history-${idx}`);
     p.classList.toggle('hidden');
     const btn = document.getElementById(`history-btn-${idx}`);
-    btn.innerText = p.classList.contains('hidden') ? `📋 Tampilkan Riwayat` : `📋 Sembunyikan Riwayat`;
+    btn.innerText = p.classList.contains('hidden') ? `Tampilkan Riwayat` : `Sembunyikan Riwayat`;
 }
 
 async function submitEdit(idx) {
@@ -353,13 +353,13 @@ function tamperOnChain(recordIndex) {
         "Ini hanya simulasi visual — data asli di blockchain tidak berubah.\n\n" +
         "Masukkan diagnosa palsu:", "Data Dimanipulasi"
     );
-    if (!newData) return;
-    alert(
-        "⚠️ DEMONSTRASI KEAMANAN\n\n" +
-        "Pada sistem tanpa blockchain, data ini bisa diubah menjadi:\n\"" + newData + "\"\n\n" +
-        "Namun pada Bisma Medical Chain, perubahan ini TIDAK MUNGKIN terjadi " +
-        "karena setiap record terkunci di Ethereum blockchain and tidak dapat dimodifikasi."
-    );
+//     if (!newData) return;
+//     alert(
+//         "⚠️ DEMONSTRASI KEAMANAN\n\n" +
+//         "Pada sistem tanpa blockchain, data ini bisa diubah menjadi:\n\"" + newData + "\"\n\n" +
+//         "Namun pada Bisma Medical Chain, perubahan ini TIDAK MUNGKIN terjadi " +
+//         "karena setiap record terkunci di Ethereum blockchain and tidak dapat dimodifikasi."
+//     );
 }
 
 async function addNewBlock() {
@@ -371,30 +371,30 @@ async function addNewBlock() {
     if (!pid || isNaN(pid) || !diag) { alert("Harap isi ID Pasien dan Diagnosa!"); return; }
 
     // Check if ID is registered — warn if not, allow proceeding
-    if (contract) {
-        try {
-            const registeredName = await contract.patientIdToName(pid);
-            const isRegistered   = registeredName && registeredName.trim() !== '';
-            if (!isRegistered) {
-                const proceed = confirm(
-                    "\u26a0\ufe0f PERINGATAN\n\n" +
-                    "ID Pasien \"" + pid + "\" tidak ditemukan dalam registri.\n\n" +
-                    "Record akan tetap disimpan namun pasien ini tidak akan bisa\n" +
-                    "melihat atau mengelola recordnya sendiri.\n\n" +
-                    "Apakah Anda yakin ingin melanjutkan?"
-                );
-                if (!proceed) return;
-            }
-        } catch (e) {
-            const proceed = confirm("\u26a0\ufe0f Tidak dapat memverifikasi ID \"" + pid + "\". Lanjutkan?");
-            if (!proceed) return;
-        }
-    }
+    // if (contract) {
+    //     try {
+    //         const registeredName = await contract.patientIdToName(pid);
+    //         const isRegistered   = registeredName && registeredName.trim() !== '';
+    //         if (!isRegistered) {
+    //             const proceed = confirm(
+    //                 "\u26a0\ufe0f PERINGATAN\n\n" +
+    //                 "ID Pasien \"" + pid + "\" tidak ditemukan dalam registri.\n\n" +
+    //                 "Record akan tetap disimpan namun pasien ini tidak akan bisa\n" +
+    //                 "melihat atau mengelola recordnya sendiri.\n\n" +
+    //                 "Apakah Anda yakin ingin melanjutkan?"
+    //             );
+    //             if (!proceed) return;
+    //         }
+    //     } catch (e) {
+    //         const proceed = confirm("\u26a0\ufe0f Tidak dapat memverifikasi ID \"" + pid + "\". Lanjutkan?");
+    //         if (!proceed) return;
+    //     }
+    // }
 
     try {
-        document.getElementById('status').innerText = "\u23f3 Mengirim transaksi ke Ethereum...";
+        document.getElementById('status').innerText = "Mengirim transaksi ke Ethereum...";
         const tx = await contract.addRecord(pid, nameVal, diag);
-        document.getElementById('status').innerText = "\u23f3 Menunggu konfirmasi blok...";
+        document.getElementById('status').innerText = "Menunggu konfirmasi blok...";
         await tx.wait();
         document.getElementById('patientId').value = '';
         document.getElementById('diagnosis').value = '';
