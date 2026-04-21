@@ -1,11 +1,11 @@
 // ============================================================
 // CONFIGURATION & CONTRACT ABI
 // ============================================================
-const CONTRACT_ADDRESS = "0xe413386A62F2237Fc1107576e9D3e07BE21d0440";
+const CONTRACT_ADDRESS = "0x42E13cF748687a035ab79D3FBeB1a2ADE8f89Bf0";
 
 const CONTRACT_ABI = [
     // Write Functions
-    "function addRecord(uint256 _patientId, string memory _diagnosis) public",
+    "function addRecord(uint256 _patientId, string memory _patientName, string memory _diagnosis) public",
     "function editRecord(uint256 _recordIndex, string memory _newDiagnosis) public",
     "function togglePrivacy(uint256 _recordIndex) public",
     "function authorizeDoctor(address _doc) public",
@@ -13,7 +13,7 @@ const CONTRACT_ABI = [
     "function authorizePatient(address _patient, string memory _name) public",
     "function revokePatient(address _patient) public",
     // Read Functions
-    "function getRecord(uint256 _index) public view returns (uint256, string, uint256, address, bool)",
+    "function getRecord(uint256 _index) public view returns (uint256, string, string, uint256, address, bool)",
     "function getRecordHistory(uint256 _index) public view returns (string[], uint256[])",
     "function totalRecords() public view returns (uint256)",
     "function authorizedDoctors(address) public view returns (bool)",
@@ -168,7 +168,7 @@ async function renderChain() {
         const allBlocks = [];
 
         for (let i = 0; i < total; i++) {
-            const [pId, diagnosis, timestamp, addedBy, isPrivate] = await contract.getRecord(i);
+            const [pId, patientName, diagnosis, timestamp, addedBy, isPrivate] = await contract.getRecord(i);
             const [historyDiag, historyTime] = await contract.getRecordHistory(i);
             
             const pid = pId.toNumber();
@@ -363,16 +363,47 @@ function tamperOnChain(recordIndex) {
 }
 
 async function addNewBlock() {
-    const pid = document.getElementById('patientId').value;
-    const diag = document.getElementById('diagnosis').value;
-    if (!pid || !diag) { alert("Isi ID dan Diagnosa!"); return; }
+    const pid      = parseInt(document.getElementById('patientId').value);
+    const nameEl   = document.getElementById('patientNameDisplay');
+    const diag     = document.getElementById('diagnosis').value.trim();
+    const nameVal  = (nameEl && nameEl.value.trim()) ? nameEl.value.trim() : `Pasien #${pid}`;
+
+    if (!pid || isNaN(pid) || !diag) { alert("Harap isi ID Pasien dan Diagnosa!"); return; }
+
+    // Check if ID is registered — warn if not, allow proceeding
+    if (contract) {
+        try {
+            const registeredName = await contract.patientIdToName(pid);
+            const isRegistered   = registeredName && registeredName.trim() !== '';
+            if (!isRegistered) {
+                const proceed = confirm(
+                    "\u26a0\ufe0f PERINGATAN\n\n" +
+                    "ID Pasien \"" + pid + "\" tidak ditemukan dalam registri.\n\n" +
+                    "Record akan tetap disimpan namun pasien ini tidak akan bisa\n" +
+                    "melihat atau mengelola recordnya sendiri.\n\n" +
+                    "Apakah Anda yakin ingin melanjutkan?"
+                );
+                if (!proceed) return;
+            }
+        } catch (e) {
+            const proceed = confirm("\u26a0\ufe0f Tidak dapat memverifikasi ID \"" + pid + "\". Lanjutkan?");
+            if (!proceed) return;
+        }
+    }
+
     try {
-        const tx = await contract.addRecord(pid, diag);
+        document.getElementById('status').innerText = "\u23f3 Mengirim transaksi ke Ethereum...";
+        const tx = await contract.addRecord(pid, nameVal, diag);
+        document.getElementById('status').innerText = "\u23f3 Menunggu konfirmasi blok...";
         await tx.wait();
         document.getElementById('patientId').value = '';
         document.getElementById('diagnosis').value = '';
+        if (nameEl) nameEl.value = '';
         renderChain();
-    } catch (e) { alert("Gagal menambah data: " + e.message); }
+    } catch (e) {
+        if (e.code === 4001) { alert("Transaksi dibatalkan."); }
+        else { alert("Transaksi gagal:\n" + (e.reason || e.message)); }
+    }
 }
 
 function renderLocalFallback(chainEl, status) {
