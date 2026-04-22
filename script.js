@@ -425,7 +425,7 @@ function tamperOnChain(recordIndex) {
 
     const newDiag = prompt(
         "SIMULASI TAMPER (Admin)" +
-        "Demonstrasi ubah diagnosis:",
+        "\nDemonstrasi ubah diagnosis:",
         "Double click to add text"
     );
     if (!newDiag || !newDiag.trim()) return;
