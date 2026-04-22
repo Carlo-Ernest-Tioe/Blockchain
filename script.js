@@ -189,6 +189,10 @@ async function renderChain() {
             });
         }
 
+        // Compute SHA256 hashes per-column (grouped by patientId, ordered by recordIndex)
+        // This creates a visual hash chain like the original demo
+        computeBlockHashes(allBlocks);
+
         const visible = filterBlocksByRole(allBlocks);
         renderGroupedChain(chainEl, visible);
         status.innerText = "SISTEM AMAN: Data Terverifikasi di Jaringan Ethereum";
@@ -197,6 +201,41 @@ async function renderChain() {
         console.error("Render failed, using local fallback", err);
         renderLocalFallback(chainEl, status);
     }
+}
+
+// ============================================================
+// HASH CHAIN COMPUTATION (visual only — mirrors original demo)
+// Hashes are computed from on-chain data using CryptoJS SHA256
+// Each column is an independent chain: genesis → block1 → block2 ...
+// ============================================================
+function computeBlockHashes(blocks) {
+    // Group by patientId, sort each group by recordIndex
+    const groups = new Map();
+    blocks.forEach(b => {
+        if (!groups.has(b.patientId)) groups.set(b.patientId, []);
+        groups.get(b.patientId).push(b);
+    });
+
+    groups.forEach(chain => {
+        chain.sort((a, b) => a.recordIndex - b.recordIndex);
+        let prevHash = '0000000000000000';
+        chain.forEach(block => {
+            block.previousHash = prevHash;
+            block.currentHash  = CryptoJS.SHA256(
+                block.recordIndex + prevHash + block.timestamp +
+                block.patientId   + block.patientName + block.diagnosis
+            ).toString();
+            prevHash = block.currentHash;
+        });
+    });
+}
+
+// Recompute a single block's hash from its current data (used after tamper)
+function recomputeHash(block) {
+    return CryptoJS.SHA256(
+        block.recordIndex + block.previousHash + block.timestamp +
+        block.patientId   + block.patientName  + block.diagnosis
+    ).toString();
 }
 
 function filterBlocksByRole(blocks) {
@@ -252,7 +291,7 @@ function renderGroupedChain(chainEl, blocks) {
 
 function buildBlockElement(block) {
     const el = document.createElement('div');
-    el.className = `block ${block.isPrivate ? 'is-private' : ''}`;
+    el.className = `block ${block.isPrivate ? 'is-private' : ''} ${block.isTampered ? 'is-invalid' : ''}`;
 
     // Privacy Badge for Authorized Users
     const privacyBadge = ((currentRole === 'doctor' || currentRole === 'admin') && block.isPrivate)
@@ -294,13 +333,27 @@ function buildBlockElement(block) {
                 ${block.isPrivate ? 'Set Publik' : 'Set Privat'}
             </button>`;
     } 
-    // --- RESTORED: Admin Tamper Action ---
     else if (currentRole === 'admin') {
+        const isTampered = block.isTampered || tamperState.has(block.recordIndex);
         actions = `
             <div class="admin-actions">
-                <button class="tamper-btn" onclick="tamperOnChain(${block.recordIndex})">Simulasi Tamper</button>
+                <button class="tamper-btn ${isTampered ? 'tamper-active' : ''}"
+                    onclick="tamperOnChain(${block.recordIndex})">
+                    ${isTampered ? 'Ditamper' : 'Simulasi Tamper'}
+                </button>
+                ${isTampered
+                    ? `<button class="reset-tamper-btn" onclick="resetTamper(${block.recordIndex})">↩ Reset</button>`
+                    : ''}
             </div>`;
     }
+
+    // Hash display — admin only, mirrors original demo
+    const hashSection = (currentRole === 'admin' && block.previousHash)
+        ? `<small>PREVIOUS HASH:</small>
+           <span class="hash-label">${block.previousHash}</span>
+           <small>CURRENT HASH:</small>
+           <span class="hash-label ${block.isTampered ? 'hash-invalid' : ''}">${block.isTampered ? block.tamperedHash : block.currentHash}</span>`
+        : '';
 
     el.innerHTML = `
         <div class="block-header">
@@ -309,9 +362,10 @@ function buildBlockElement(block) {
         </div>
         <div class="block-data">
             <span class="block-patient-id">#${block.patientId}</span> ${block.patientName}:
-            <span class="block-diagnosis">${block.diagnosis}</span>
+            <span class="block-diagnosis">${block.isTampered ? `<span class="tampered-diagnosis">${block.tamperedDiagnosis}</span>` : block.diagnosis}</span>
         </div>
         ${addedByHtml}
+        ${hashSection}
         ${historySection}
         ${actions}
     `;
@@ -348,21 +402,126 @@ async function togglePrivacy(idx) {
     } catch (e) { alert("Gagal mengubah privasi: " + e.message); }
 }
 
-// --- RESTORED: Admin Tamper Simulation ---
+// ============================================================
+// TAMPER SIMULATION (admin only)
+// Visually breaks the hash chain exactly like the original demo
+// Does NOT change blockchain data — purely educational
+// ============================================================
+
+// Stores tamper state per recordIndex so it survives re-renders
+const tamperState = new Map();
+function resetTamper(recordIndex) {
+    tamperState.delete(recordIndex);
+    if (tamperState.size === 0) {
+        renderChain(); // full clean render
+    } else {
+        renderChainWithTamper(); // still some tampers active
+    }
+}
+
+
 function tamperOnChain(recordIndex) {
     if (currentRole !== 'admin') { alert("Akses Ditolak!"); return; }
-    const newData = prompt(
-        "SIMULASI TAMPER (Admin Only)\n\n" +
-        "Ini hanya simulasi visual — data asli di blockchain tidak berubah.\n\n" +
-        "Masukkan diagnosa palsu:", "Data Dimanipulasi"
+
+    const newDiag = prompt(
+        "SIMULASI TAMPER (Admin)" +
+        "Demonstrasi ubah diagnosis:",
+        "Double click to add text"
     );
-//     if (!newData) return;
-//     alert(
-//         "⚠️ DEMONSTRASI KEAMANAN\n\n" +
-//         "Pada sistem tanpa blockchain, data ini bisa diubah menjadi:\n\"" + newData + "\"\n\n" +
-//         "Namun pada Bisma Medical Chain, perubahan ini TIDAK MUNGKIN terjadi " +
-//         "karena setiap record terkunci di Ethereum blockchain and tidak dapat dimodifikasi."
-//     );
+    if (!newDiag || !newDiag.trim()) return;
+
+    // Store tamper locally
+    tamperState.set(recordIndex, newDiag.trim());
+
+    // Re-render to show broken chain
+    renderChainWithTamper();
+}
+
+async function renderChainWithTamper() {
+    const chainEl = document.getElementById('chain');
+    const status  = document.getElementById('status');
+
+    try {
+        const total     = await contract.totalRecords();
+        const allBlocks = [];
+
+        for (let i = 0; i < total; i++) {
+            const [pId, patientName, diagnosis, timestamp, addedBy, isPrivate] = await contract.getRecord(i);
+            const [historyDiag, historyTime] = await contract.getRecordHistory(i);
+            const pid          = pId.toNumber();
+            const resolvedName = (patientName && patientName.trim() !== '')
+                ? patientName.trim() : `Pasien #${pid}`;
+            patientNameCache.set(pid, resolvedName);
+
+            allBlocks.push({
+                recordIndex: i, patientId: pid, patientName: resolvedName,
+                diagnosis, isPrivate, addedBy,
+                timestamp: new Date(Number(timestamp) * 1000).toISOString(),
+                history: historyDiag.map((d, idx) => ({
+                    diagnosis: d, timestamp: new Date(Number(historyTime[idx]) * 1000).toISOString()
+                }))
+            });
+        }
+
+        // Compute clean hashes first
+        computeBlockHashes(allBlocks);
+
+        // Apply tamper states — this breaks the chain visually
+        let chainBroken = false;
+        const groups = new Map();
+        allBlocks.forEach(b => {
+            if (!groups.has(b.patientId)) groups.set(b.patientId, []);
+            groups.get(b.patientId).push(b);
+        });
+
+        groups.forEach(chain => {
+            chain.sort((a, b) => a.recordIndex - b.recordIndex);
+            let prevHash = '0000000000000000';
+            let breakDetected = false;
+
+            chain.forEach(block => {
+                if (tamperState.has(block.recordIndex)) {
+                    // This block was tampered — show fake diagnosis, broken hash
+                    block.isTampered       = true;
+                    block.tamperedDiagnosis = tamperState.get(block.recordIndex);
+                    block.tamperedHash     = CryptoJS.SHA256(
+                        block.recordIndex + prevHash + block.timestamp +
+                        block.patientId + block.patientName + block.tamperedDiagnosis
+                    ).toString();
+                    // All subsequent blocks in this chain are now invalid
+                    prevHash       = block.tamperedHash;
+                    breakDetected  = true;
+                    chainBroken    = true;
+                } else if (breakDetected) {
+                    // Block after tampered one — previousHash no longer matches
+                    block.isInvalidated = true;
+                    chainBroken = true;
+                    prevHash = block.currentHash; // keep propagating
+                }
+            });
+        });
+
+        const visible = filterBlocksByRole(allBlocks);
+        renderGroupedChainTampered(chainEl, visible);
+
+        if (chainBroken) {
+            status.innerText = "PERINGATAN: Terdeteksi Manipulasi Data pada Ledger!";
+            status.className = "status-bar invalid";
+        } else {
+            status.innerText = "SISTEM AMAN: Data Terverifikasi di Jaringan Ethereum";
+            status.className = "status-bar valid";
+        }
+    } catch (err) {
+        console.error("Tamper render failed:", err);
+    }
+}
+
+function renderGroupedChainTampered(chainEl, blocks) {
+    // Same as renderGroupedChain but marks invalidated blocks
+    blocks.forEach(b => {
+        if (b.isInvalidated) b.isTampered = true; // reuse same styling
+    });
+    renderGroupedChain(chainEl, blocks);
 }
 
 async function addNewBlock() {
