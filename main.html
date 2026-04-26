@@ -3,23 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blockchain Medical Record</title>
+    <title>Bisma Medical Chain</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="Bisma.ico">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 </head>
 <body>
-
+ 
+<!-- Toast container (populated by JS) -->
+<div id="toast-container"></div>
+ 
 <div class="container">
     <header>
-        <img src="Bisma.png">
+        <img src="Bisma.png" alt="Bisma Logo">
         <div class="Artetanyahu">
             <h1>Bisma Medical Chain</h1>
             <p>Simulasi Integritas Data Rekam Medis Pasien</p>
         </div>
     </header>
-
+ 
     <!-- Wallet Connection -->
     <div class="wallet-section">
         <button id="connectBtn" onclick="connectMetaMask()">Hubungkan MetaMask</button>
@@ -27,20 +31,20 @@
         <span id="walletAddress">Belum terhubung</span>
         <span class="role-badge role-none" id="roleBadge">Tidak Terhubung</span>
     </div>
-
+ 
     <div id="status" class="status-bar invalid">Tidak terhubung — Hubungkan MetaMask</div>
-
+ 
     <!-- Input form — only visible to doctor / admin -->
     <div class="form-group hidden" id="inputForm">
         <input type="number" id="patientId" placeholder="ID Pasien..." min="1" />
         <input type="text" id="patientNameDisplay" placeholder="Nama Pasien..." />
-        <input type="text"   id="diagnosis" placeholder="Diagnosa Medis..." />
+        <input type="text" id="diagnosis" placeholder="Diagnosa Medis..." />
         <button class="btn-add" onclick="addNewBlock()">Simpan ke Ledger</button>
     </div>
-
+ 
     <div id="chain"></div>
 </div>
-
+ 
 <script src="script.js"></script>
 </body>
 </html>
