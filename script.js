@@ -389,7 +389,7 @@ function buildBlockElement(block) {
     el.className = `block ${block.isPrivate ? 'is-private' : ''} ${block.isTampered ? 'is-invalid' : ''}`;
 
     const privacyBadge = ((currentRole === 'doctor' || currentRole === 'admin') && block.isPrivate)
-        ? `<span class="privacy-indicator">🔒 Privat</span>` : '';
+        ? `<span class="privacy-indicator">Privat</span>` : '';
 
     const addedByHtml = block.addedBy
         ? `<small>DITAMBAHKAN OLEH</small><span class="hash-label">${block.addedBy}</span>` : '';
@@ -405,7 +405,7 @@ function buildBlockElement(block) {
 
         historySection = `
             <button class="history-toggle-btn" onclick="toggleHistory(${block.recordIndex})" id="history-btn-${block.recordIndex}">
-                📋 Tampilkan Riwayat (${block.history.length})
+                Tampilkan Riwayat (${block.history.length})
             </button>
             <div class="history-panel hidden" id="history-${block.recordIndex}">${items}</div>`;
     }
@@ -424,7 +424,7 @@ function buildBlockElement(block) {
                 </div>
             </div>
             <button class="privacy-btn ${block.isPrivate ? 'is-private-btn' : ''}" onclick="togglePrivacy(${block.recordIndex})">
-                ${block.isPrivate ? '🔓 Set Publik' : '🔒 Set Privat'}
+                ${block.isPrivate ? 'Set Publik' : 'Set Privat'}
             </button>`;
     } else if (currentRole === 'admin') {
         const isTampered = block.isTampered || tamperState.has(block.recordIndex);
@@ -432,7 +432,7 @@ function buildBlockElement(block) {
             <div class="admin-actions">
                 <button class="tamper-btn ${isTampered ? 'tamper-active' : ''}"
                     onclick="tamperOnChain(${block.recordIndex})">
-                    ${isTampered ? '⚠️ Ditamper' : '🔧 Simulasi Tamper'}
+                    ${isTampered ? 'Ditamper' : 'Simulasi Tamper'}
                 </button>
                 ${isTampered
                     ? `<button class="reset-tamper-btn" onclick="resetTamper(${block.recordIndex})">↩ Reset</button>`
@@ -475,8 +475,8 @@ function toggleHistory(idx) {
     p.classList.toggle('hidden');
     const count = btn.dataset.count || btn.innerText.match(/\d+/)?.[0] || '';
     btn.innerText = p.classList.contains('hidden')
-        ? `📋 Tampilkan Riwayat (${count})`
-        : `📋 Sembunyikan Riwayat`;
+        ? `Tampilkan Riwayat (${count})`
+        : `Sembunyikan Riwayat`;
     btn.classList.toggle('active', !p.classList.contains('hidden'));
 }
 
